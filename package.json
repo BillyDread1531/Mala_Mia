@@ -1,0 +1,9 @@
+{
+  "name": "mala-mia",
+  "version": "0.0.1",
+  "private": true,
+  "description": "MALA MIA - sistema administrativo (tienda de ropa)",
+  "workspaces": [
+    "apps/*"
+  ]
+}
