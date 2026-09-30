@@ -31,6 +31,17 @@ export default defineConfig({
       },
     }),
   ],
+  server: {
+    // Permite exponer solo el frontend (ej. con un tunel) y que las
+    // llamadas a la API salgan del mismo origen: evita el problema de
+    // cookie de sesion cross-site cuando front y back viven en dominios
+    // distintos. En desarrollo normal (sin VITE_API_URL vacio) no se usa.
+    proxy: {
+      '/auth': 'http://localhost:3000',
+      '/health': 'http://localhost:3000',
+    },
+    allowedHosts: true,
+  },
   test: {
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
