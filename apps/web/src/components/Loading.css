@@ -1,0 +1,29 @@
+.loading {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-text-muted);
+  font-size: 14px;
+}
+
+.loading--full {
+  width: 100%;
+  min-height: 100svh;
+  justify-content: center;
+  background: var(--color-bg-cream);
+}
+
+.loading__spinner {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 3px solid var(--color-accent-soft);
+  border-top-color: var(--color-accent);
+  animation: loading-spin 700ms linear infinite;
+}
+
+@keyframes loading-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

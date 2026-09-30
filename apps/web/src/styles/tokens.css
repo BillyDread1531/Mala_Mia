@@ -1,0 +1,50 @@
+:root {
+  color-scheme: light;
+
+  /* Base: blanco/crema, negro suave, grises calidos (CONTEXT.md #4) */
+  --color-bg: #fffdfc;
+  --color-bg-cream: #fbf3ef;
+  --color-surface: #ffffff;
+  --color-border: #ece3dd;
+  --color-text: #241f1f;
+  --color-text-muted: #8a7f78;
+
+  /* Acento: fucsia/rosa (uso deliberado, no dominante) */
+  --color-accent: #e0447b;
+  --color-accent-strong: #b4285c;
+  --color-accent-soft: #fbe4ed;
+
+  /* Estados */
+  --color-success: #2f8f5b;
+  --color-success-soft: #e4f5ec;
+  --color-warning: #b8790b;
+  --color-warning-soft: #fbf0dd;
+  --color-danger: #c23b3b;
+  --color-danger-soft: #fbe6e6;
+
+  --font-sans:
+    'Poppins', system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 22px;
+  --radius-full: 999px;
+
+  --shadow-sm: 0 1px 2px rgba(36, 31, 31, 0.06);
+  --shadow-md: 0 8px 24px rgba(36, 31, 31, 0.08);
+  --shadow-accent: 0 8px 20px rgba(224, 68, 123, 0.25);
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+
+  --nav-height-mobile: 64px;
+  --header-height-desktop: 64px;
+  --content-max-width: 1120px;
+
+  --focus-ring: 0 0 0 3px rgba(224, 68, 123, 0.35);
+}

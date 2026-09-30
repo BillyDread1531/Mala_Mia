@@ -1,0 +1,26 @@
+.dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.dashboard__greeting h1 {
+  font-size: 22px;
+}
+
+.dashboard__greeting p {
+  color: var(--color-text-muted);
+  margin-top: var(--space-1);
+}
+
+.dashboard__grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-3);
+}
+
+.dashboard__section-title {
+  font-size: 15px;
+  margin-bottom: var(--space-3);
+  color: var(--color-text-muted);
+}

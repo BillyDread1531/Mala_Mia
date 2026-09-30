@@ -12,6 +12,12 @@ async function bootstrap() {
   const configService = app.get(ConfigService<AppConfig, true>);
 
   app.use(cookieParser());
+
+  const corsOrigin = configService.get('corsOrigin', { infer: true });
+  if (corsOrigin) {
+    app.enableCors({ origin: corsOrigin, credentials: true });
+  }
+
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,

@@ -1,0 +1,23 @@
+.app-layout {
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg-cream);
+}
+
+.app-layout__content {
+  flex: 1;
+  padding: var(--space-5) var(--space-4);
+}
+
+.app-layout__content.has-mobile-nav {
+  padding-bottom: calc(var(--nav-height-mobile) + var(--space-5));
+}
+
+.app-layout__inner {
+  max-width: var(--content-max-width);
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
