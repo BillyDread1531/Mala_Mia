@@ -36,9 +36,16 @@ export default defineConfig({
     // llamadas a la API salgan del mismo origen: evita el problema de
     // cookie de sesion cross-site cuando front y back viven en dominios
     // distintos. En desarrollo normal (sin VITE_API_URL vacio) no se usa.
+    // IMPORTANTE: agregar aqui cada nuevo recurso top-level del backend
+    // (apps/api/src/modules/*), o sus llamadas caeran silenciosamente al
+    // index.html del frontend en vez de llegar a la API.
     proxy: {
       '/auth': 'http://localhost:3000',
       '/health': 'http://localhost:3000',
+      '/categories': 'http://localhost:3000',
+      '/sizes': 'http://localhost:3000',
+      '/colors': 'http://localhost:3000',
+      '/products': 'http://localhost:3000',
     },
     allowedHosts: true,
   },

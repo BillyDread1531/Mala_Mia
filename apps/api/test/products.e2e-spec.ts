@@ -1,0 +1,386 @@
+import { INestApplication, ValidationPipe } from '@nestjs/common';
+import { Test, TestingModule } from '@nestjs/testing';
+import * as argon2 from 'argon2';
+import cookieParser from 'cookie-parser';
+import request from 'supertest';
+import { App } from 'supertest/types';
+import { AppModule } from './../src/app.module';
+import { BigIntInterceptor } from './../src/common/interceptors/bigint.interceptor';
+import { PrismaService } from './../src/prisma/prisma.service';
+
+const TEST_USERNAME = 'e2e_test_products_user';
+const TEST_PASSWORD = 'e2e-test-password-Bb2!';
+const SESSION_COOKIE_NAME = 'mala_mia_session';
+/** Todo producto creado por este archivo debe usar este prefijo: es lo que
+ * usa afterAll para limpiar, incluso si una aserción falla a medio test. */
+const TEST_NAME_PREFIX = 'E2E ';
+
+interface ProductViewBody {
+  id: string;
+  code: string;
+  name: string;
+  category: { id: string; name: string };
+  cost: string | null;
+  salePrice: string | null;
+  recommendedPrice: string | null;
+  variantCount: number;
+  variants: {
+    sizeId: string;
+    sizeName: string;
+    colorId: string;
+    colorName: string;
+  }[];
+}
+
+interface ListResponseBody {
+  items: ProductViewBody[];
+  total: number;
+}
+
+interface ErrorResponseBody {
+  message: string;
+}
+
+describe('Products (e2e)', () => {
+  let app: INestApplication<App>;
+  let prisma: PrismaService;
+  let sessionCookie: string;
+  let blusasId: bigint;
+  let sizeS: bigint;
+  let sizeM: bigint;
+  let sizeL: bigint;
+  let colorBeige: bigint;
+  let colorRojo: bigint;
+
+  beforeAll(async () => {
+    const moduleFixture: TestingModule = await Test.createTestingModule({
+      imports: [AppModule],
+    }).compile();
+
+    app = moduleFixture.createNestApplication();
+    app.use(cookieParser());
+    app.useGlobalPipes(
+      new ValidationPipe({
+        whitelist: true,
+        forbidNonWhitelisted: true,
+        transform: true,
+      }),
+    );
+    app.useGlobalInterceptors(new BigIntInterceptor());
+    await app.init();
+
+    prisma = moduleFixture.get(PrismaService);
+
+    const role = await prisma.roles.findUniqueOrThrow({
+      where: { name: 'SELLER' },
+    });
+    const passwordHash = await argon2.hash(TEST_PASSWORD, {
+      type: argon2.argon2id,
+    });
+    await prisma.users.create({
+      data: {
+        username: TEST_USERNAME,
+        full_name: 'E2E Products Tester',
+        role_id: role.id,
+        password_hash: passwordHash,
+        is_active: true,
+      },
+    });
+
+    const loginRes = await request(app.getHttpServer())
+      .post('/auth/login')
+      .send({ username: TEST_USERNAME, password: TEST_PASSWORD })
+      .expect(200);
+    const rawCookies = loginRes.get('set-cookie') as unknown as
+      string[] | undefined;
+    const cookie = rawCookies?.find((c) =>
+      c.startsWith(`${SESSION_COOKIE_NAME}=`),
+    );
+    if (!cookie)
+      throw new Error('No se recibió la cookie de sesión en el test');
+    sessionCookie = cookie.split(';')[0];
+
+    const category = await prisma.categories.findUniqueOrThrow({
+      where: { name: 'Blusas' },
+    });
+    blusasId = category.id;
+    sizeS = (
+      await prisma.sizes.findUniqueOrThrow({ where: { normalized_name: 'S' } })
+    ).id;
+    sizeM = (
+      await prisma.sizes.findUniqueOrThrow({ where: { normalized_name: 'M' } })
+    ).id;
+    sizeL = (
+      await prisma.sizes.findUniqueOrThrow({ where: { normalized_name: 'L' } })
+    ).id;
+    colorBeige = (
+      await prisma.colors.findUniqueOrThrow({
+        where: { normalized_name: 'BEIGE' },
+      })
+    ).id;
+    colorRojo = (
+      await prisma.colors.findUniqueOrThrow({
+        where: { normalized_name: 'ROJO' },
+      })
+    ).id;
+  });
+
+  afterAll(async () => {
+    // Barrido por prefijo (no por id): así queda limpio incluso si una
+    // aserción falla antes de registrar el id creado, o si la respuesta
+    // falla después de que la transacción ya escribió en la base.
+    await prisma.products.deleteMany({
+      where: { name: { startsWith: TEST_NAME_PREFIX } },
+    });
+    await prisma.users.deleteMany({ where: { username: TEST_USERNAME } });
+    await app.close();
+  });
+
+  function authed(req: request.Test): request.Test {
+    return req.set('Cookie', [sessionCookie]);
+  }
+
+  describe('POST /products', () => {
+    it('crea un producto con combinaciones talla+color y calcula el precio recomendado', async () => {
+      const res = await authed(
+        request(app.getHttpServer())
+          .post('/products')
+          .send({
+            name: 'E2E Blusa Satinada',
+            categoryId: Number(blusasId),
+            cost: 65,
+            salePrice: 125,
+            variants: [
+              { sizeId: Number(sizeS), colorId: Number(colorBeige) },
+              { sizeId: Number(sizeM), colorId: Number(colorBeige) },
+              { sizeId: Number(sizeL), colorId: Number(colorBeige) },
+              { sizeId: Number(sizeS), colorId: Number(colorRojo) },
+            ],
+          }),
+      ).expect(201);
+
+      const body = res.body as ProductViewBody;
+
+      expect(body.code).toMatch(/^BLU-\d{4}$/);
+      expect(body.cost).toBe('65');
+      expect(body.salePrice).toBe('125');
+      expect(body.recommendedPrice).toBe('100'); // 65 / (1 - 0.35)
+      expect(body.variantCount).toBe(4);
+      expect(body.category).toEqual({
+        id: blusasId.toString(),
+        name: 'Blusas',
+      });
+    });
+
+    it('crear un producto NO crea filas en inventory_items', async () => {
+      const beforeCount = await prisma.inventory_items.count();
+
+      await authed(
+        request(app.getHttpServer())
+          .post('/products')
+          .send({
+            name: 'E2E Producto Sin Inventario',
+            categoryId: Number(blusasId),
+            variants: [{ sizeId: Number(sizeS), colorId: Number(colorBeige) }],
+          }),
+      ).expect(201);
+
+      const afterCount = await prisma.inventory_items.count();
+      expect(afterCount).toBe(beforeCount);
+    });
+
+    it('rechaza un código duplicado', async () => {
+      const first = await authed(
+        request(app.getHttpServer())
+          .post('/products')
+          .send({
+            name: 'E2E Producto Uno',
+            categoryId: Number(blusasId),
+            variants: [],
+          }),
+      ).expect(201);
+
+      const res = await authed(
+        request(app.getHttpServer())
+          .post('/products')
+          .send({
+            name: 'E2E Producto Dos',
+            categoryId: Number(blusasId),
+            code: (first.body as ProductViewBody).code,
+            variants: [],
+          }),
+      ).expect(409);
+
+      expect((res.body as ErrorResponseBody).message).toContain(
+        'ya está en uso',
+      );
+    });
+
+    it('rechaza datos inválidos (sin nombre, categoría inexistente)', async () => {
+      await authed(
+        request(app.getHttpServer())
+          .post('/products')
+          .send({ categoryId: Number(blusasId), variants: [] }),
+      ).expect(400);
+
+      await authed(
+        request(app.getHttpServer()).post('/products').send({
+          name: 'Producto Categoria Falsa',
+          categoryId: 999999,
+          variants: [],
+        }),
+      ).expect(400);
+    });
+
+    it('sin sesión responde 401', () => {
+      return request(app.getHttpServer())
+        .post('/products')
+        .send({
+          name: 'No Autenticado',
+          categoryId: Number(blusasId),
+          variants: [],
+        })
+        .expect(401);
+    });
+  });
+
+  describe('GET /products', () => {
+    it('lista y busca productos por nombre parcial', async () => {
+      await authed(
+        request(app.getHttpServer())
+          .post('/products')
+          .send({
+            name: 'E2E Vestido Floreado',
+            categoryId: Number(blusasId),
+            variants: [],
+          }),
+      ).expect(201);
+
+      const res = await authed(
+        request(app.getHttpServer())
+          .get('/products')
+          .query({ search: 'Floreado' }),
+      ).expect(200);
+
+      const body = res.body as ListResponseBody;
+      expect(body.items.some((p) => p.name === 'E2E Vestido Floreado')).toBe(
+        true,
+      );
+    });
+
+    it('sin sesión responde 401', () => {
+      return request(app.getHttpServer()).get('/products').expect(401);
+    });
+  });
+
+  describe('GET /products/:id', () => {
+    it('consulta el detalle de un producto existente', async () => {
+      const create = await authed(
+        request(app.getHttpServer())
+          .post('/products')
+          .send({
+            name: 'E2E Detalle Producto',
+            categoryId: Number(blusasId),
+            variants: [],
+          }),
+      ).expect(201);
+      const id = (create.body as ProductViewBody).id;
+
+      const res = await authed(
+        request(app.getHttpServer()).get(`/products/${id}`),
+      ).expect(200);
+      expect((res.body as ProductViewBody).name).toBe('E2E Detalle Producto');
+    });
+
+    it('producto inexistente responde 404', () => {
+      return authed(
+        request(app.getHttpServer()).get('/products/999999999'),
+      ).expect(404);
+    });
+  });
+
+  describe('PATCH /products/:id', () => {
+    it('edita nombre, costo y combinaciones sin perder el producto', async () => {
+      const create = await authed(
+        request(app.getHttpServer())
+          .post('/products')
+          .send({
+            name: 'E2E Producto Editable',
+            categoryId: Number(blusasId),
+            cost: 50,
+            variants: [{ sizeId: Number(sizeS), colorId: Number(colorBeige) }],
+          }),
+      ).expect(201);
+      const id = (create.body as ProductViewBody).id;
+
+      const res = await authed(
+        request(app.getHttpServer())
+          .patch(`/products/${id}`)
+          .send({
+            name: 'E2E Producto Editado',
+            cost: 80,
+            variants: [
+              { sizeId: Number(sizeS), colorId: Number(colorBeige) },
+              { sizeId: Number(sizeM), colorId: Number(colorRojo) },
+            ],
+          }),
+      ).expect(200);
+
+      const body = res.body as ProductViewBody;
+      expect(body.name).toBe('E2E Producto Editado');
+      expect(body.cost).toBe('80');
+      expect(body.variantCount).toBe(2);
+    });
+  });
+
+  describe('GET /products/check-duplicates', () => {
+    it('encuentra coincidencias por nombre parcial/tokenizado', async () => {
+      await authed(
+        request(app.getHttpServer())
+          .post('/products')
+          .send({
+            name: 'E2E Blusa Satinada Especial',
+            categoryId: Number(blusasId),
+            variants: [],
+          }),
+      ).expect(201);
+
+      const res = await authed(
+        request(app.getHttpServer())
+          .get('/products/check-duplicates')
+          .query({ q: 'blusa satinada' }),
+      ).expect(200);
+
+      const body = res.body as ProductViewBody[];
+      expect(body.some((p) => p.name === 'E2E Blusa Satinada Especial')).toBe(
+        true,
+      );
+    });
+  });
+
+  describe('GET /products/generate-code', () => {
+    it('genera un código con el prefijo de la categoría', async () => {
+      const res = await authed(
+        request(app.getHttpServer())
+          .get('/products/generate-code')
+          .query({ categoryId: Number(blusasId) }),
+      ).expect(200);
+
+      expect((res.body as { code: string }).code).toMatch(/^BLU-\d{4}$/);
+    });
+  });
+
+  describe('GET /products/recommended-price', () => {
+    it('calcula el precio recomendado con el margen configurado (35%)', async () => {
+      const res = await authed(
+        request(app.getHttpServer())
+          .get('/products/recommended-price')
+          .query({ cost: 65 }),
+      ).expect(200);
+
+      expect((res.body as { recommendedPrice: string }).recommendedPrice).toBe(
+        '100',
+      );
+    });
+  });
+});

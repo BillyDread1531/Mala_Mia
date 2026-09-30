@@ -39,13 +39,27 @@ export async function apiFetch<T>(path: string, options: RequestInit = {}): Prom
     return undefined as T;
   }
 
-  const body: unknown = await response.json().catch(() => null);
+  let body: unknown;
+  let parseFailed = false;
+  try {
+    body = await response.json();
+  } catch {
+    parseFailed = true;
+  }
 
   if (!response.ok) {
     throw new ApiError(
       response.status,
       extractMessage(body) ?? 'No se pudo completar la solicitud. Intenta de nuevo.',
     );
+  }
+
+  if (parseFailed) {
+    // Una respuesta "ok" que no es JSON casi siempre significa que la
+    // petición nunca llegó al backend (ej. una ruta sin configurar en el
+    // proxy de Vite devolviendo el index.html). Fallar aquí, en vez de
+    // devolver null en silencio, evita bugs difíciles de rastrear.
+    throw new ApiError(response.status, 'Respuesta inesperada del servidor.');
   }
 
   return body as T;
