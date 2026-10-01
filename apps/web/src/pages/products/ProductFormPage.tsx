@@ -17,15 +17,13 @@ import { Input } from '../../components/Input';
 import { Loading } from '../../components/Loading';
 import { useNotify } from '../../notifications/useNotify';
 import type { Category, Color, Size } from '../../types/catalog';
-import type { Product, VariantInput } from '../../types/product';
+import type { Product } from '../../types/product';
+import { SizeColorPicker } from './SizeColorPicker';
+import { comboKey, computeActiveVariants } from './variantCombo';
 import './ProductFormPage.css';
 
 const RECOMMENDED_PRICE_DEBOUNCE_MS = 300;
 const CODE_PREVIEW_DEBOUNCE_MS = 300;
-
-function comboKey(sizeId: number, colorId: number): string {
-  return `${sizeId}-${colorId}`;
-}
 
 export function ProductFormPage() {
   const { id } = useParams<{ id: string }>();
@@ -134,17 +132,10 @@ export function ProductFormPage() {
   const recommendedPrice =
     cost.trim() === '' || Number.isNaN(Number(cost)) ? null : fetchedRecommendedPrice;
 
-  const activeVariants = useMemo<VariantInput[]>(() => {
-    const result: VariantInput[] = [];
-    for (const sizeId of selectedSizeIds) {
-      for (const colorId of selectedColorIds) {
-        if (!disabledCombos.has(comboKey(sizeId, colorId))) {
-          result.push({ sizeId, colorId });
-        }
-      }
-    }
-    return result;
-  }, [selectedSizeIds, selectedColorIds, disabledCombos]);
+  const activeVariants = useMemo(
+    () => computeActiveVariants(selectedSizeIds, selectedColorIds, disabledCombos),
+    [selectedSizeIds, selectedColorIds, disabledCombos],
+  );
 
   function toggleSize(sizeId: number) {
     setSelectedSizeIds((prev) => {
@@ -368,64 +359,16 @@ export function ProductFormPage() {
             Elige qué tallas y colores maneja este producto.
           </p>
 
-          <div className="product-form__chips">
-            {sizes.map((size) => (
-              <button
-                key={size.id}
-                type="button"
-                className={`chip${selectedSizeIds.has(Number(size.id)) ? ' is-active' : ''}`}
-                onClick={() => toggleSize(Number(size.id))}
-              >
-                {size.name}
-              </button>
-            ))}
-          </div>
-
-          <div className="product-form__chips">
-            {colors.map((color) => (
-              <button
-                key={color.id}
-                type="button"
-                className={`chip${selectedColorIds.has(Number(color.id)) ? ' is-active' : ''}`}
-                onClick={() => toggleColor(Number(color.id))}
-              >
-                {color.name}
-              </button>
-            ))}
-          </div>
-
-          {selectedSizeIds.size > 0 && selectedColorIds.size > 0 ? (
-            <div className="product-form__combinations">
-              <p className="product-form__hint">
-                Desmarca las combinaciones que no manejas:
-              </p>
-              {[...selectedSizeIds].map((sizeId) => {
-                const sizeName = sizes.find((s) => Number(s.id) === sizeId)?.name ?? '';
-                return (
-                  <div key={sizeId} className="product-form__combo-row">
-                    <span className="product-form__combo-label">{sizeName}</span>
-                    <div className="product-form__chips">
-                      {[...selectedColorIds].map((colorId) => {
-                        const colorName =
-                          colors.find((c) => Number(c.id) === colorId)?.name ?? '';
-                        const active = !disabledCombos.has(comboKey(sizeId, colorId));
-                        return (
-                          <button
-                            key={colorId}
-                            type="button"
-                            className={`chip chip--sm${active ? ' is-active' : ' is-disabled'}`}
-                            onClick={() => toggleCombo(sizeId, colorId)}
-                          >
-                            {colorName}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          ) : null}
+          <SizeColorPicker
+            sizes={sizes}
+            colors={colors}
+            selectedSizeIds={selectedSizeIds}
+            selectedColorIds={selectedColorIds}
+            disabledCombos={disabledCombos}
+            onToggleSize={toggleSize}
+            onToggleColor={toggleColor}
+            onToggleCombo={toggleCombo}
+          />
         </Card>
 
         <div className="product-form__actions">

@@ -12,3 +12,8 @@ export interface Color {
   id: string;
   name: string;
 }
+
+export interface PaymentMethod {
+  id: string;
+  name: string;
+}

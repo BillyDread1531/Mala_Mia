@@ -25,4 +25,11 @@ export class CatalogService {
       orderBy: { name: 'asc' },
     });
   }
+
+  listPaymentMethods() {
+    return this.prisma.payment_methods.findMany({
+      where: { is_active: true, applies_to_purchases: true },
+      orderBy: { name: 'asc' },
+    });
+  }
 }

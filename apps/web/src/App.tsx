@@ -9,6 +9,9 @@ import { ComingSoonPage } from './pages/ComingSoonPage';
 import { MorePage } from './pages/MorePage';
 import { ProductsListPage } from './pages/products/ProductsListPage';
 import { ProductFormPage } from './pages/products/ProductFormPage';
+import { PurchasesListPage } from './pages/purchases/PurchasesListPage';
+import { PurchaseFormPage } from './pages/purchases/PurchaseFormPage';
+import { PurchaseDetailPage } from './pages/purchases/PurchaseDetailPage';
 
 function App() {
   return (
@@ -25,7 +28,9 @@ function App() {
                 <Route path="/inventario" element={<ProductsListPage />} />
                 <Route path="/inventario/nuevo" element={<ProductFormPage />} />
                 <Route path="/inventario/:id" element={<ProductFormPage />} />
-                <Route path="/compras" element={<ComingSoonPage title="Compras" />} />
+                <Route path="/compras" element={<PurchasesListPage />} />
+                <Route path="/compras/nueva" element={<PurchaseFormPage />} />
+                <Route path="/compras/:id" element={<PurchaseDetailPage />} />
                 <Route path="/gastos" element={<ComingSoonPage title="Gastos" />} />
                 <Route path="/reportes" element={<ComingSoonPage title="Reportes" />} />
                 <Route path="/mas" element={<MorePage />} />

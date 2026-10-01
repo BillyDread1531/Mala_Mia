@@ -21,4 +21,9 @@ export class CatalogController {
   colors() {
     return this.catalogService.listColors();
   }
+
+  @Get('payment-methods')
+  paymentMethods() {
+    return this.catalogService.listPaymentMethods();
+  }
 }

@@ -1,0 +1,67 @@
+.size-color-picker {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.size-color-picker__hint {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.product-form__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.chip {
+  min-height: 40px;
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-full);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.chip.is-active {
+  background: var(--color-accent-soft);
+  border-color: var(--color-accent);
+  color: var(--color-accent-strong);
+}
+
+.chip--sm {
+  min-height: 32px;
+  padding: 0 var(--space-3);
+  font-size: 13px;
+}
+
+.chip--sm.is-disabled {
+  background: var(--color-bg-cream);
+  color: var(--color-text-muted);
+  text-decoration: line-through;
+}
+
+.product-form__combinations {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--color-border);
+}
+
+.product-form__combo-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.product-form__combo-label {
+  min-width: 32px;
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
