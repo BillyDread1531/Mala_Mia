@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { InventoryService } from '../inventory/inventory.service';
 import { CreatePurchaseDto } from './dto/create-purchase.dto';
 import { QueryPurchasesDto } from './dto/query-purchases.dto';
 import { PurchaseView, toPurchaseView } from './purchases.mapper';
@@ -26,7 +27,10 @@ export interface PaginatedPurchases {
 
 @Injectable()
 export class PurchasesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly inventoryService: InventoryService,
+  ) {}
 
   private async generatePurchaseNumber(): Promise<string> {
     const last = await this.prisma.purchases.findFirst({
@@ -135,6 +139,14 @@ export class PurchasesService {
           cost_is_estimated: false,
         })),
       });
+
+      // Misma transacción: si esto falla, la compra tampoco queda creada.
+      await this.inventoryService.applyPurchaseEntries(
+        tx,
+        purchase.id,
+        dto.items,
+        createdBy,
+      );
 
       return tx.purchases.findUniqueOrThrow({
         where: { id: purchase.id },

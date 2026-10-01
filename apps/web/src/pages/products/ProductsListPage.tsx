@@ -56,9 +56,14 @@ export function ProductsListPage() {
           <h1>Productos</h1>
           <p>El catálogo de MALA MÍA.</p>
         </div>
-        <Link to="/inventario/nuevo">
-          <Button>Nuevo producto</Button>
-        </Link>
+        <div className="products-list__header-actions">
+          <Link to="/inventario/stock" className="products-list__stock-link">
+            Ver inventario →
+          </Link>
+          <Link to="/inventario/nuevo">
+            <Button>Nuevo producto</Button>
+          </Link>
+        </div>
       </header>
 
       <Input

@@ -12,6 +12,7 @@ import { CatalogModule } from './modules/catalog/catalog.module';
 import { ProductsModule } from './modules/products/products.module';
 import { SuppliersModule } from './modules/suppliers/suppliers.module';
 import { PurchasesModule } from './modules/purchases/purchases.module';
+import { InventoryModule } from './modules/inventory/inventory.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { PurchasesModule } from './modules/purchases/purchases.module';
     ProductsModule,
     SuppliersModule,
     PurchasesModule,
+    InventoryModule,
   ],
   controllers: [AppController],
   providers: [AppService],

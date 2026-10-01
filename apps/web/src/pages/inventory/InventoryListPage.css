@@ -1,10 +1,10 @@
-.products-list {
+.inventory-list {
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
 }
 
-.products-list__header {
+.inventory-list__header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -12,30 +12,23 @@
   flex-wrap: wrap;
 }
 
-.products-list__header h1 {
+.inventory-list__header h1 {
   font-size: 20px;
 }
 
-.products-list__header-actions {
-  display: flex;
-  align-items: center;
-  gap: var(--space-4);
-}
-
-.products-list__stock-link {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--color-accent-strong);
-  white-space: nowrap;
-}
-
-.products-list__header p {
+.inventory-list__header p {
   color: var(--color-text-muted);
   font-size: 14px;
   margin-top: 2px;
 }
 
-.products-list__items {
+.inventory-list__back {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  align-self: center;
+}
+
+.inventory-list__items {
   list-style: none;
   margin: 0;
   padding: 0;
@@ -44,7 +37,7 @@
   gap: var(--space-2);
 }
 
-.product-row {
+.inventory-row {
   display: flex;
   align-items: center;
   gap: var(--space-3);
@@ -56,11 +49,11 @@
   color: var(--color-text);
 }
 
-.product-row:hover {
+.inventory-row:hover {
   border-color: var(--color-accent);
 }
 
-.product-row__main {
+.inventory-row__main {
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -68,36 +61,41 @@
   flex: 1;
 }
 
-.product-row__name {
+.inventory-row__name {
   font-weight: 600;
   font-size: 15px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
-.product-row__code {
+.inventory-row__code {
   font-size: 12px;
   color: var(--color-text-muted);
 }
 
-.product-row__meta {
-  display: none;
-  flex-direction: column;
-  align-items: flex-end;
-  font-size: 12px;
-  color: var(--color-text-muted);
-  text-align: right;
-}
-
-.product-row__price {
+.inventory-row__qty {
   font-weight: 700;
   font-size: 15px;
   white-space: nowrap;
 }
 
-@media (min-width: 640px) {
-  .product-row__meta {
-    display: flex;
-  }
+.inventory-badge {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  white-space: nowrap;
+}
+
+.inventory-badge--disponible {
+  background: var(--color-success-soft);
+  color: var(--color-success);
+}
+
+.inventory-badge--stock_bajo {
+  background: var(--color-warning-soft);
+  color: var(--color-warning);
+}
+
+.inventory-badge--agotado {
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
 }

@@ -49,6 +49,7 @@ export default defineConfig({
       '/payment-methods': 'http://localhost:3000',
       '/suppliers': 'http://localhost:3000',
       '/purchases': 'http://localhost:3000',
+      '/inventory': 'http://localhost:3000',
     },
     allowedHosts: true,
   },

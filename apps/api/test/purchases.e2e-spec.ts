@@ -168,6 +168,18 @@ describe('Purchases (e2e)', () => {
       select: { id: true },
     });
     const purchaseIds = testPurchases.map((p) => p.id);
+    // Fase 6: estas compras ahora también generan inventory_items/movements.
+    const testInventoryItems = await prisma.inventory_items.findMany({
+      where: { products: { name: { startsWith: TEST_NAME_PREFIX } } },
+      select: { id: true },
+    });
+    const inventoryIds = testInventoryItems.map((i) => i.id);
+    await prisma.inventory_movements.deleteMany({
+      where: { inventory_item_id: { in: inventoryIds } },
+    });
+    await prisma.inventory_items.deleteMany({
+      where: { id: { in: inventoryIds } },
+    });
     await prisma.purchase_items.deleteMany({
       where: { purchase_id: { in: purchaseIds } },
     });
