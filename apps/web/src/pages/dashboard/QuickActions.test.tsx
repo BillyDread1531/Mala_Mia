@@ -18,10 +18,7 @@ describe('QuickActions', () => {
   it('todas las acciones rápidas navegan a su pantalla, ninguna queda sin destino', () => {
     renderActions();
 
-    expect(screen.getByRole('link', { name: /Nueva venta/ })).toHaveAttribute(
-      'href',
-      '/ventas/nueva',
-    );
+    expect(screen.getByRole('link', { name: /Ventas/ })).toHaveAttribute('href', '/ventas');
     expect(screen.getByRole('link', { name: /Agregar producto/ })).toHaveAttribute(
       'href',
       '/inventario/nuevo',

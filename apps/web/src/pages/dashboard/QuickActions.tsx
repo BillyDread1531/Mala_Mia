@@ -4,7 +4,7 @@ import { useNotify } from '../../notifications/useNotify';
 import './QuickActions.css';
 
 const ACTIONS = [
-  { label: 'Nueva venta', icon: SalesIcon, to: '/ventas/nueva' },
+  { label: 'Ventas', icon: SalesIcon, to: '/ventas' },
   { label: 'Agregar producto', icon: InventoryIcon, to: '/inventario/nuevo' },
   { label: 'Registrar gasto', icon: ExpensesIcon, to: '/finanzas/gastos/nuevo' },
   { label: 'Registrar compra', icon: PurchasesIcon, to: '/compras/nueva' },
