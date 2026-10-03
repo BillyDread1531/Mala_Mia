@@ -30,6 +30,11 @@ select.field__input {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  /* Sin esto, un select en una fila de 2-3 columnas se encoge tanto que
+   * corta su propio texto ("Selecciona una forma de pa…") y el navegador
+   * dibuja la lista de opciones más ancha que el cuadro cerrado, viéndose
+   * desalineada. */
+  min-width: 140px;
 }
 
 .field__input::placeholder {
