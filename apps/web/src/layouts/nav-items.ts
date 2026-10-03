@@ -39,7 +39,7 @@ const mas: NavItem = { to: '/mas', label: 'Más', icon: MoreIcon };
 // directos + el botón "+" quedaba 2 y 3 desbalanceado a cada lado; con 4
 // queda 2 y 2 — Inventario es el que menos se usa "sobre la marcha" frente a
 // Inicio/Ventas/Disponible.
-export const MOBILE_NAV: NavItem[] = [inicio, ventas, disponibilidad, mas];
+export const MOBILE_NAV: NavItem[] = [inicio, compras, disponibilidad, mas];
 export const TABLET_NAV: NavItem[] = [
   inicio,
   ventas,
