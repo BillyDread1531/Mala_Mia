@@ -26,12 +26,6 @@
   color: var(--color-text);
 }
 
-select.field__input {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .field__input::placeholder {
   color: var(--color-text-muted);
 }
