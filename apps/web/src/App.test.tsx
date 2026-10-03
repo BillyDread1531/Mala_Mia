@@ -91,7 +91,13 @@ describe('Login', () => {
     await user.click(screen.getByRole('button', { name: 'Entrar' }));
     await screen.findByText(/resumen de MALA MÍA/i);
 
-    expect(window.localStorage.length).toBe(0);
+    // localStorage sí guarda preferencias sin datos sensibles (tema, última
+    // ruta visitada para sobrevivir a que el SO mate la PWA en segundo
+    // plano) — lo que nunca debe aparecer es algo parecido a una sesión o
+    // credencial real.
+    const storedKeys = Object.keys(window.localStorage);
+    expect(storedKeys).not.toContain('token');
+    expect(storedKeys.join(' ')).not.toMatch(/session|cookie|auth|password|credential/i);
     expect(window.sessionStorage.length).toBe(0);
   });
 });

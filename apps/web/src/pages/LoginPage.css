@@ -23,9 +23,19 @@
   margin-bottom: var(--space-5);
 }
 
-.login-card__brand h1 {
-  font-size: 22px;
-  letter-spacing: 0.02em;
+.login-card__brand-title {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
+.login-card__logo {
+  width: 100%;
+  max-width: 220px;
+  height: auto;
 }
 
 .login-card__brand p {

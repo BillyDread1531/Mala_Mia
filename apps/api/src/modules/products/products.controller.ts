@@ -11,7 +11,11 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
+import { SetActiveDto } from '../catalog/dto/set-active.dto';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import type { AuthenticatedUser } from '../../common/types/authenticated-user';
 import { SessionAuthGuard } from '../auth/session-auth.guard';
+import { AddVariantsDto } from './dto/add-variants.dto';
 import { CheckDuplicatesQueryDto } from './dto/check-duplicates-query.dto';
 import { CreateProductDto } from './dto/create-product.dto';
 import { GenerateCodeQueryDto } from './dto/generate-code-query.dto';
@@ -78,5 +82,26 @@ export class ProductsController {
     @Body() dto: UpdateProductDto,
   ): Promise<ProductView> {
     return this.productsService.update(parseProductId(id), dto);
+  }
+
+  @Patch(':id/variants')
+  addVariants(
+    @Param('id') id: string,
+    @Body() dto: AddVariantsDto,
+  ): Promise<ProductView> {
+    return this.productsService.addVariants(parseProductId(id), dto.variants);
+  }
+
+  @Patch(':id/active')
+  setActive(
+    @Param('id') id: string,
+    @Body() dto: SetActiveDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<ProductView> {
+    return this.productsService.setActive(
+      parseProductId(id),
+      dto.isActive,
+      BigInt(user.id),
+    );
   }
 }

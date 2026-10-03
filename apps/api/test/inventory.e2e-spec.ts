@@ -170,7 +170,11 @@ describe('Inventory (e2e)', () => {
     await prisma.suppliers.deleteMany({
       where: { name: { startsWith: TEST_NAME_PREFIX } },
     });
-    await prisma.users.deleteMany({ where: { id: userId } });
+    await prisma.financial_movements.deleteMany({
+      where: { created_by: userId ?? 0n },
+    });
+    await prisma.audit_logs.deleteMany({ where: { user_id: userId ?? 0n } });
+    await prisma.users.deleteMany({ where: { id: userId ?? 0n } });
     await app.close();
   });
 
@@ -455,6 +459,131 @@ describe('Inventory (e2e)', () => {
           .patch('/inventory/999999999/adjust')
           .send({ quantityChange: 1, reason: 'Error de conteo' }),
       ).expect(404);
+    });
+  });
+
+  describe('GET /inventory/grouped y POST /inventory/adjust-variant', () => {
+    it('la vista agrupada incluye todas las combinaciones declaradas del producto', async () => {
+      const res = await authed(
+        request(app.getHttpServer())
+          .get('/inventory/grouped')
+          .query({ search: `${TEST_NAME_PREFIX}Blusa Satinada` }),
+      ).expect(200);
+      const body = res.body as {
+        sizeName: string;
+        colorName: string;
+      }[];
+      const sRojoRow = body.find(
+        (i) => i.sizeName === 'S' && i.colorName === 'Rojo',
+      );
+      // Las 4 combinaciones declaradas en el beforeAll siempre aparecen, sin
+      // importar si ya tienen stock o no.
+      expect(body.length).toBeGreaterThanOrEqual(4);
+      expect(sRojoRow).toBeDefined();
+    });
+
+    it('GET /inventory/grouped?productId filtra por producto, incluso si está inactivo', async () => {
+      const category = await prisma.categories.findFirstOrThrow();
+      const product = await prisma.products.create({
+        data: {
+          category_id: category.id,
+          code: 'E2E6-ADJ-0002',
+          name: `${TEST_NAME_PREFIX}Producto Para Editar`,
+          is_available_for_sale: false,
+        },
+      });
+      await prisma.product_variants.create({
+        data: { product_id: product.id, size_id: sizeS, color_id: colorBeige },
+      });
+
+      const res = await authed(
+        request(app.getHttpServer())
+          .get('/inventory/grouped')
+          .query({ productId: Number(product.id) }),
+      ).expect(200);
+      const body = res.body as { productId: string; sizeName: string; colorName: string }[];
+      expect(body).toHaveLength(1);
+      expect(body[0].productId).toBe(product.id.toString());
+      expect(body[0].sizeName).toBe('S');
+      expect(body[0].colorName).toBe('Beige');
+    });
+
+    it('da stock inicial a una combinación nunca comprada sin registrar una compra', async () => {
+      const category = await prisma.categories.findFirstOrThrow();
+      const product = await prisma.products.create({
+        data: {
+          category_id: category.id,
+          code: 'E2E6-ADJ-0001',
+          name: `${TEST_NAME_PREFIX}Producto Sin Comprar`,
+        },
+      });
+      await prisma.product_variants.create({
+        data: { product_id: product.id, size_id: sizeS, color_id: colorBeige },
+      });
+
+      const grouped = await authed(
+        request(app.getHttpServer())
+          .get('/inventory/grouped')
+          .query({ search: `${TEST_NAME_PREFIX}Producto Sin Comprar` }),
+      ).expect(200);
+      const row = (
+        grouped.body as {
+          inventoryItemId: string | null;
+          quantity: number;
+          status: string;
+        }[]
+      )[0];
+      expect(row.inventoryItemId).toBeNull();
+      expect(row.quantity).toBe(0);
+      expect(row.status).toBe('AGOTADO');
+
+      const res = await authed(
+        request(app.getHttpServer())
+          .post('/inventory/adjust-variant')
+          .send({
+            productId: Number(product.id),
+            sizeId: Number(sizeS),
+            colorId: Number(colorBeige),
+            quantityChange: 10,
+            reason: 'Corrección de inventario',
+          }),
+      ).expect(201);
+      const body = res.body as InventoryItemBody;
+      expect(body.quantity).toBe(10);
+
+      const after = await authed(
+        request(app.getHttpServer())
+          .get('/inventory/grouped')
+          .query({ search: `${TEST_NAME_PREFIX}Producto Sin Comprar` }),
+      ).expect(200);
+      expect((after.body as { quantity: number }[])[0].quantity).toBe(10);
+    });
+
+    it('rechaza ajustar una combinación que el producto no declara', async () => {
+      await authed(
+        request(app.getHttpServer())
+          .post('/inventory/adjust-variant')
+          .send({
+            productId: Number(productId),
+            sizeId: Number(sizeL),
+            colorId: Number(colorRojo),
+            quantityChange: 5,
+            reason: 'Corrección de inventario',
+          }),
+      ).expect(400);
+    });
+
+    it('sin sesión responde 401', () => {
+      return request(app.getHttpServer())
+        .post('/inventory/adjust-variant')
+        .send({
+          productId: 1,
+          sizeId: 1,
+          colorId: 1,
+          quantityChange: 1,
+          reason: 'Error de conteo',
+        })
+        .expect(401);
     });
   });
 });

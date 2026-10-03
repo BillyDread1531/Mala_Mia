@@ -3,11 +3,17 @@ export interface Supplier {
   name: string;
   phone: string | null;
   whatsapp: string | null;
-  contact_person: string | null;
+  contactPerson: string | null;
   address: string | null;
   social: string | null;
   notes: string | null;
-  is_active: boolean;
+  isActive: boolean;
+}
+
+export interface SupplierListItem extends Supplier {
+  purchaseCount: number;
+  lastPurchaseDate: string | null;
+  totalPurchased: string;
 }
 
 export interface SupplierFormInput {
@@ -19,3 +25,5 @@ export interface SupplierFormInput {
   social?: string;
   notes?: string;
 }
+
+export type UpdateSupplierInput = Partial<SupplierFormInput>;

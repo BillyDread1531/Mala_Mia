@@ -13,3 +13,23 @@ export function toAuthenticatedUser(user: UserWithRole): AuthenticatedUser {
     role: user.roles.name,
   };
 }
+
+export interface UserView {
+  id: string;
+  username: string;
+  fullName: string;
+  role: string;
+  isActive: boolean;
+  createdAt: Date;
+}
+
+export function toUserView(user: UserWithRole): UserView {
+  return {
+    id: user.id.toString(),
+    username: user.username,
+    fullName: user.full_name,
+    role: user.roles.name,
+    isActive: user.is_active,
+    createdAt: user.created_at,
+  };
+}

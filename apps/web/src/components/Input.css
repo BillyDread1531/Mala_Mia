@@ -3,6 +3,10 @@
   flex-direction: column;
   gap: var(--space-1);
   text-align: left;
+  /* Sin esto, un <select> con una opción de texto largo (ej. una categoría)
+   * se niega a encogerse dentro de su fila flex y la empuja más ancha que
+   * la pantalla — el clásico "cuadro que sobrepasa" en móvil. */
+  min-width: 0;
 }
 
 .field__label {
@@ -12,12 +16,20 @@
 }
 
 .field__input {
+  width: 100%;
+  max-width: 100%;
   min-height: 44px;
   padding: 0 var(--space-4);
   border-radius: var(--radius-md);
   border: 1px solid var(--color-border);
   background: var(--color-surface);
   color: var(--color-text);
+}
+
+select.field__input {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .field__input::placeholder {

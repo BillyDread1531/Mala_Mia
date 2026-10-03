@@ -14,6 +14,8 @@ vi.mock('../../api/catalog', () => ({
   listSizes: vi.fn(),
   listColors: vi.fn(),
   listPaymentMethods: vi.fn(),
+  createSize: vi.fn(),
+  createColor: vi.fn(),
 }));
 vi.mock('../../api/suppliers', () => ({
   listSuppliers: vi.fn(),
@@ -24,13 +26,31 @@ vi.mock('../../api/products', () => ({
   checkDuplicates: vi.fn(),
   createProduct: vi.fn(),
   generateCode: vi.fn(),
+  previewRecommendedPrice: vi.fn(),
+  addProductVariants: vi.fn(),
+  updateProduct: vi.fn(),
 }));
 vi.mock('../../api/purchases', () => ({
   createPurchase: vi.fn(),
 }));
 
-import { listCategories, listColors, listPaymentMethods, listSizes } from '../../api/catalog';
-import { checkDuplicates, createProduct, generateCode, listProducts } from '../../api/products';
+import {
+  createColor,
+  createSize,
+  listCategories,
+  listColors,
+  listPaymentMethods,
+  listSizes,
+} from '../../api/catalog';
+import {
+  addProductVariants,
+  checkDuplicates,
+  createProduct,
+  generateCode,
+  listProducts,
+  previewRecommendedPrice,
+  updateProduct,
+} from '../../api/products';
 import { createPurchase } from '../../api/purchases';
 import { createSupplier, listSuppliers } from '../../api/suppliers';
 
@@ -40,10 +60,15 @@ const mockedListPaymentMethods = vi.mocked(listPaymentMethods);
 const mockedListCategories = vi.mocked(listCategories);
 const mockedListSizes = vi.mocked(listSizes);
 const mockedListColors = vi.mocked(listColors);
+const mockedCreateSize = vi.mocked(createSize);
+const mockedCreateColor = vi.mocked(createColor);
 const mockedListProducts = vi.mocked(listProducts);
 const mockedCheckDuplicates = vi.mocked(checkDuplicates);
 const mockedCreateProduct = vi.mocked(createProduct);
 const mockedGenerateCode = vi.mocked(generateCode);
+const mockedPreviewRecommendedPrice = vi.mocked(previewRecommendedPrice);
+const mockedAddProductVariants = vi.mocked(addProductVariants);
+const mockedUpdateProduct = vi.mocked(updateProduct);
 const mockedCreatePurchase = vi.mocked(createPurchase);
 
 const SUPPLIERS: Supplier[] = [
@@ -52,20 +77,29 @@ const SUPPLIERS: Supplier[] = [
     name: 'Boutique XX',
     phone: null,
     whatsapp: null,
-    contact_person: null,
+    contactPerson: null,
     address: null,
     social: null,
     notes: null,
-    is_active: true,
+    isActive: true,
   },
 ];
-const PAYMENT_METHODS: PaymentMethod[] = [{ id: '1', name: 'Efectivo' }];
-const CATEGORIES: Category[] = [{ id: '1', name: 'Blusas' }];
-const SIZES: Size[] = [
-  { id: '2', name: 'S' },
-  { id: '3', name: 'M' },
+const PAYMENT_METHODS: PaymentMethod[] = [
+  {
+    id: '1',
+    name: 'Efectivo',
+    appliesToSales: true,
+    appliesToPurchases: true,
+    appliesToExpenses: true,
+    isActive: true,
+  },
 ];
-const COLORS: Color[] = [{ id: '5', name: 'Beige' }];
+const CATEGORIES: Category[] = [{ id: '1', name: 'Blusas', isActive: true }];
+const SIZES: Size[] = [
+  { id: '2', name: 'S', normalizedName: 'S', isActive: true },
+  { id: '3', name: 'M', normalizedName: 'M', isActive: true },
+];
+const COLORS: Color[] = [{ id: '5', name: 'Beige', normalizedName: 'BEIGE', isActive: true }];
 
 const EXISTING_PRODUCT: Product = {
   id: '10',
@@ -76,6 +110,8 @@ const EXISTING_PRODUCT: Product = {
   cost: '65',
   salePrice: '125',
   recommendedPrice: '100',
+  waistMeasurement: null,
+  lengthMeasurement: null,
   isAvailableForSale: true,
   variantCount: 2,
   variants: [
@@ -108,6 +144,10 @@ beforeEach(() => {
   mockedListSizes.mockResolvedValue(SIZES);
   mockedListColors.mockResolvedValue(COLORS);
   mockedCheckDuplicates.mockResolvedValue([]);
+  mockedPreviewRecommendedPrice.mockResolvedValue({ recommendedPrice: '100' });
+  mockedAddProductVariants.mockImplementation((id) =>
+    Promise.resolve({ ...EXISTING_PRODUCT, id } as Product),
+  );
 });
 
 describe('PurchaseFormPage', () => {
@@ -126,11 +166,11 @@ describe('PurchaseFormPage', () => {
       name: 'Boutique YY',
       phone: null,
       whatsapp: null,
-      contact_person: null,
+      contactPerson: null,
       address: null,
       social: null,
       notes: null,
-      is_active: true,
+      isActive: true,
     });
     renderPage();
 
@@ -151,9 +191,38 @@ describe('PurchaseFormPage', () => {
     const result = await screen.findByRole('button', { name: /Blusa Satinada/ });
     await user.click(result);
 
-    expect(await screen.findByText('BLU-0012 · Registra cantidad y costo de las combinaciones que compraste.')).toBeInTheDocument();
+    expect(
+      await screen.findByText(
+        'BLU-0012 · Marca las tallas y colores que trae esta factura — puedes agregar combinaciones que el producto nunca había manejado.',
+      ),
+    ).toBeInTheDocument();
     expect(screen.getByText('S / Beige')).toBeInTheDocument();
     expect(screen.getByText('M / Beige')).toBeInTheDocument();
+  });
+
+  it('permite editar las medidas (cintura/largo) de un producto seleccionado sin salir de la compra', async () => {
+    const user = userEvent.setup();
+    mockedListProducts.mockResolvedValue({ items: [EXISTING_PRODUCT], total: 1, page: 1, pageSize: 20 });
+    mockedUpdateProduct.mockResolvedValue({
+      ...EXISTING_PRODUCT,
+      waistMeasurement: '76',
+      lengthMeasurement: '102',
+    });
+    renderPage();
+
+    await user.type(await screen.findByLabelText('Producto'), 'blusa satin');
+    await user.click(await screen.findByRole('button', { name: /Blusa Satinada/ }));
+
+    await user.type(screen.getByLabelText('Cintura (cm)'), '76');
+    await user.type(screen.getByLabelText('Largo (cm)'), '102');
+    await user.click(screen.getByRole('button', { name: 'Guardar medidas' }));
+
+    await vi.waitFor(() =>
+      expect(mockedUpdateProduct).toHaveBeenCalledWith('10', {
+        waistMeasurement: 76,
+        lengthMeasurement: 102,
+      }),
+    );
   });
 
   it('detecta posibles duplicados al escribir el nombre de un producto nuevo', async () => {
@@ -187,8 +256,32 @@ describe('PurchaseFormPage', () => {
     expect(mockedCreateProduct).toHaveBeenCalledWith(
       expect.objectContaining({ name: 'Blusa Satinada', categoryId: 1, variants: [{ sizeId: 2, colorId: 5 }] }),
     );
-    // El producto creado queda seleccionado: aparece la tabla de combinaciones.
-    expect(await screen.findByText(`${EXISTING_PRODUCT.code} · Registra cantidad y costo de las combinaciones que compraste.`)).toBeInTheDocument();
+    // El producto creado queda seleccionado: aparece el picker de combinaciones.
+    expect(
+      await screen.findByText(
+        `${EXISTING_PRODUCT.code} · Marca las tallas y colores que trae esta factura — puedes agregar combinaciones que el producto nunca había manejado.`,
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it('permite crear una talla o un color nuevo también al crear un producto inline', async () => {
+    const user = userEvent.setup();
+    mockedCreateColor.mockResolvedValue({
+      id: '8',
+      name: 'Verde musgo',
+      normalizedName: 'VERDE MUSGO',
+      isActive: true,
+    });
+    renderPage();
+
+    await user.click(await screen.findByRole('button', { name: '+ Crear producto nuevo' }));
+    expect(screen.getByRole('button', { name: '+ Nueva talla' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: '+ Nuevo color' }));
+    await user.type(screen.getByLabelText('Nombre del color'), 'Verde musgo');
+    await user.click(screen.getByRole('button', { name: 'Agregar color' }));
+
+    await vi.waitFor(() => expect(mockedCreateColor).toHaveBeenCalledWith('Verde musgo'));
+    expect(await screen.findByRole('button', { name: 'Verde musgo' })).toHaveClass('is-active');
   });
 
   it('calcula subtotal y total al ingresar cantidades y costos', async () => {
@@ -214,6 +307,80 @@ describe('PurchaseFormPage', () => {
 
     expect(await screen.findByText('Subtotal: Q325')).toBeInTheDocument();
     expect(screen.getByText('Q325')).toBeInTheDocument(); // total (unico producto)
+  });
+
+  it('un producto sin combinaciones declaradas permite elegir talla/color y agregar cantidad (bug crítico)', async () => {
+    const user = userEvent.setup();
+    const productWithoutVariants: Product = {
+      ...EXISTING_PRODUCT,
+      id: '20',
+      variantCount: 0,
+      variants: [],
+    };
+    mockedListProducts.mockResolvedValue({
+      items: [productWithoutVariants],
+      total: 1,
+      page: 1,
+      pageSize: 20,
+    });
+    renderPage();
+
+    await user.type(await screen.findByLabelText('Producto'), 'blusa satin');
+    await user.click(await screen.findByRole('button', { name: /Blusa Satinada/ }));
+
+    // Sin combinaciones aún: no hay fila de cantidad/costo que llenar.
+    expect(
+      screen.getByText(
+        'Marca al menos una talla y un color arriba para ingresar cantidad y costo.',
+      ),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'S' }));
+    await user.click(screen.getByRole('button', { name: 'Beige' }));
+
+    const rows = screen.getAllByRole('row');
+    const inputs = within(rows[1]).getAllByRole('spinbutton');
+    await user.type(inputs[0], '5');
+    await user.clear(inputs[1]);
+    await user.type(inputs[1], '40');
+
+    await user.click(screen.getByRole('button', { name: 'Agregar a la compra' }));
+
+    await vi.waitFor(() =>
+      expect(mockedAddProductVariants).toHaveBeenCalledWith('20', [{ sizeId: 2, colorId: 5 }]),
+    );
+    expect(await screen.findByText('Subtotal: Q200')).toBeInTheDocument();
+  });
+
+  it('permite crear una talla o un color nuevo sin salir de la compra', async () => {
+    const user = userEvent.setup();
+    mockedListProducts.mockResolvedValue({ items: [EXISTING_PRODUCT], total: 1, page: 1, pageSize: 20 });
+    mockedCreateSize.mockResolvedValue({ id: '9', name: 'XL', normalizedName: 'XL', isActive: true });
+    mockedCreateColor.mockResolvedValue({
+      id: '8',
+      name: 'Verde musgo',
+      normalizedName: 'VERDE MUSGO',
+      isActive: true,
+    });
+    renderPage();
+
+    await user.type(await screen.findByLabelText('Producto'), 'blusa satin');
+    await user.click(await screen.findByRole('button', { name: /Blusa Satinada/ }));
+
+    await user.click(screen.getByRole('button', { name: '+ Nueva talla' }));
+    await user.type(screen.getByLabelText('Nombre de la talla'), 'XL');
+    await user.click(screen.getByRole('button', { name: 'Agregar talla' }));
+
+    await vi.waitFor(() => expect(mockedCreateSize).toHaveBeenCalledWith('XL'));
+    expect(await screen.findByRole('button', { name: 'XL' })).toHaveClass('is-active');
+
+    await user.click(screen.getByRole('button', { name: '+ Nuevo color' }));
+    await user.type(screen.getByLabelText('Nombre del color'), 'Verde musgo');
+    await user.click(screen.getByRole('button', { name: 'Agregar color' }));
+
+    await vi.waitFor(() => expect(mockedCreateColor).toHaveBeenCalledWith('Verde musgo'));
+    const verdeMusgoButtons = await screen.findAllByRole('button', { name: 'Verde musgo' });
+    expect(verdeMusgoButtons.some((btn) => btn.className.includes('is-active'))).toBe(true);
   });
 
   it('confirma la compra y navega al detalle', async () => {
@@ -245,5 +412,35 @@ describe('PurchaseFormPage', () => {
       }),
     );
     expect(await screen.findByText('Detalle de compra')).toBeInTheDocument();
+  });
+
+  it('incluye el costo de transporte en la compra cuando se ingresa', async () => {
+    const user = userEvent.setup();
+    mockedListProducts.mockResolvedValue({ items: [EXISTING_PRODUCT], total: 1, page: 1, pageSize: 20 });
+    mockedCreatePurchase.mockResolvedValue({ id: '99' } as Purchase);
+    renderPage();
+
+    await user.selectOptions(await screen.findByLabelText('Proveedor'), '1');
+    await user.selectOptions(screen.getByLabelText('Forma de pago'), '1');
+
+    await user.type(screen.getByLabelText('Producto'), 'blusa satin');
+    await user.click(await screen.findByRole('button', { name: /Blusa Satinada/ }));
+    const rows = screen.getAllByRole('row');
+    const sBeigeInputs = within(rows[1]).getAllByRole('spinbutton');
+    await user.type(sBeigeInputs[0], '1');
+    await user.clear(sBeigeInputs[1]);
+    await user.type(sBeigeInputs[1], '65');
+    await user.click(screen.getByRole('button', { name: 'Agregar a la compra' }));
+
+    await user.type(await screen.findByLabelText('Costo de transporte (opcional)'), '20');
+    expect(screen.getByText(/^Total:/)).toHaveTextContent('Q85');
+
+    await user.click(screen.getByRole('button', { name: 'Confirmar compra' }));
+
+    await vi.waitFor(() =>
+      expect(mockedCreatePurchase).toHaveBeenCalledWith(
+        expect.objectContaining({ shippingCost: 20 }),
+      ),
+    );
   });
 });

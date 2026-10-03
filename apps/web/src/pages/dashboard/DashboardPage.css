@@ -24,3 +24,8 @@
   margin-bottom: var(--space-3);
   color: var(--color-text-muted);
 }
+
+.dashboard__error {
+  color: var(--color-danger);
+  font-size: 13px;
+}

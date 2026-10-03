@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { AUDIT_ACTIONS, AuditService } from '../audit/audit.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { QueryProductsDto } from './dto/query-products.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
@@ -33,7 +34,10 @@ export interface PaginatedProducts {
 
 @Injectable()
 export class ProductsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly auditService: AuditService,
+  ) {}
 
   private async getMarginPercent(): Promise<number> {
     const setting = await this.prisma.app_settings.findUnique({
@@ -115,7 +119,8 @@ export class ProductsService {
     const page = query.page ?? 1;
     const pageSize = query.pageSize ?? 20;
 
-    const where: Prisma.productsWhereInput = {};
+    const where: Prisma.productsWhereInput =
+      query.includeInactive === 'true' ? {} : { is_available_for_sale: true };
     if (query.categoryId) {
       where.category_id = BigInt(query.categoryId);
     }
@@ -229,6 +234,14 @@ export class ProductsService {
             dto.salePrice !== undefined
               ? new Prisma.Decimal(dto.salePrice)
               : null,
+          waist_measurement:
+            dto.waistMeasurement !== undefined
+              ? new Prisma.Decimal(dto.waistMeasurement)
+              : null,
+          length_measurement:
+            dto.lengthMeasurement !== undefined
+              ? new Prisma.Decimal(dto.lengthMeasurement)
+              : null,
         },
       });
 
@@ -289,6 +302,22 @@ export class ProductsService {
           ...(dto.salePrice !== undefined
             ? { sale_price: new Prisma.Decimal(dto.salePrice) }
             : {}),
+          ...(dto.waistMeasurement !== undefined
+            ? {
+                waist_measurement:
+                  dto.waistMeasurement === null
+                    ? null
+                    : new Prisma.Decimal(dto.waistMeasurement),
+              }
+            : {}),
+          ...(dto.lengthMeasurement !== undefined
+            ? {
+                length_measurement:
+                  dto.lengthMeasurement === null
+                    ? null
+                    : new Prisma.Decimal(dto.lengthMeasurement),
+              }
+            : {}),
         },
       });
 
@@ -306,43 +335,173 @@ export class ProductsService {
     return toProductView(updated, marginPercent);
   }
 
+  async setActive(
+    id: bigint,
+    isActive: boolean,
+    currentUserId: bigint,
+  ): Promise<ProductView> {
+    const existing = await this.prisma.products.findUnique({ where: { id } });
+    if (!existing) {
+      throw new NotFoundException('Producto no encontrado.');
+    }
+
+    const updated = await this.prisma.products.update({
+      where: { id },
+      data: { is_available_for_sale: isActive, updated_at: new Date() },
+      include: PRODUCT_INCLUDE,
+    });
+    await this.auditService.record(this.prisma, {
+      userId: currentUserId,
+      action: AUDIT_ACTIONS.PRODUCT_ACTIVE_CHANGED,
+      entityType: 'product',
+      entityId: id,
+      description: `Producto ${updated.name} ${isActive ? 'reactivado' : 'desactivado'}.`,
+      oldValues: { isAvailableForSale: !isActive },
+      newValues: { isAvailableForSale: isActive },
+    });
+
+    const marginPercent = await this.getMarginPercent();
+    return toProductView(updated, marginPercent);
+  }
+
   /**
-   * Reemplaza product_variants (y, derivado de ahí, product_sizes /
-   * product_colors) para el producto dado. No toca inventory_items ni
-   * ninguna tabla de compras/ventas: esas fases todavía no existen.
+   * Declara combinaciones nuevas SIN tocar las que ya existen (a diferencia
+   * de `update`, que reemplaza el set completo). Pensado para Compras e
+   * Inventario: cada compra es su propia factura y puede traer tallas/colores
+   * que el producto nunca había manejado, sin que eso desactive combinaciones
+   * de compras anteriores que simplemente no se repitieron esta vez.
+   */
+  async addVariants(
+    id: bigint,
+    variants: VariantInputDto[],
+  ): Promise<ProductView> {
+    const existing = await this.prisma.products.findUnique({ where: { id } });
+    if (!existing) {
+      throw new NotFoundException('Producto no encontrado.');
+    }
+
+    const deduped = this.dedupeVariants(variants);
+    if (deduped.length > 0) {
+      await this.assertSizesAndColorsExist(deduped);
+
+      await this.prisma.$transaction(async (tx) => {
+        const sizeIds = [...new Set(deduped.map((v) => BigInt(v.sizeId)))];
+        const colorIds = [...new Set(deduped.map((v) => BigInt(v.colorId)))];
+
+        for (const sizeId of sizeIds) {
+          await tx.product_sizes.upsert({
+            where: { product_id_size_id: { product_id: id, size_id: sizeId } },
+            create: { product_id: id, size_id: sizeId },
+            update: {},
+          });
+        }
+        for (const colorId of colorIds) {
+          await tx.product_colors.upsert({
+            where: {
+              product_id_color_id: { product_id: id, color_id: colorId },
+            },
+            create: { product_id: id, color_id: colorId },
+            update: {},
+          });
+        }
+        for (const variant of deduped) {
+          await tx.product_variants.upsert({
+            where: {
+              product_id_size_id_color_id: {
+                product_id: id,
+                size_id: BigInt(variant.sizeId),
+                color_id: BigInt(variant.colorId),
+              },
+            },
+            create: {
+              product_id: id,
+              size_id: BigInt(variant.sizeId),
+              color_id: BigInt(variant.colorId),
+            },
+            update: { is_active: true },
+          });
+        }
+      });
+    }
+
+    const marginPercent = await this.getMarginPercent();
+    const updated = await this.prisma.products.findUniqueOrThrow({
+      where: { id },
+      include: PRODUCT_INCLUDE,
+    });
+    return toProductView(updated, marginPercent);
+  }
+
+  /**
+   * Sincroniza product_sizes/product_colors (listas descriptivas, sin
+   * historial: se pueden recrear libremente) y product_variants.
+   *
+   * product_variants NUNCA se borra: desmarcar una combinación la deja con
+   * is_active=false (es lo que ya filtra toProductView), en vez de eliminar
+   * la fila. Esto evita perder la combinación como "declarada alguna vez"
+   * cuando ya tiene historial de compras/ventas vía inventory_items, y hace
+   * que volver a marcarla reactive la misma fila en vez de crear una nueva.
    */
   private async syncProductRelations(
     tx: Prisma.TransactionClient,
     productId: bigint,
     variants: VariantInputDto[],
   ): Promise<void> {
-    await tx.product_variants.deleteMany({ where: { product_id: productId } });
     await tx.product_sizes.deleteMany({ where: { product_id: productId } });
     await tx.product_colors.deleteMany({ where: { product_id: productId } });
 
-    if (variants.length === 0) return;
+    if (variants.length > 0) {
+      const sizeIds = [...new Set(variants.map((v) => BigInt(v.sizeId)))];
+      const colorIds = [...new Set(variants.map((v) => BigInt(v.colorId)))];
+      await tx.product_sizes.createMany({
+        data: sizeIds.map((sizeId) => ({
+          product_id: productId,
+          size_id: sizeId,
+        })),
+      });
+      await tx.product_colors.createMany({
+        data: colorIds.map((colorId) => ({
+          product_id: productId,
+          color_id: colorId,
+        })),
+      });
+    }
 
-    const sizeIds = [...new Set(variants.map((v) => BigInt(v.sizeId)))];
-    const colorIds = [...new Set(variants.map((v) => BigInt(v.colorId)))];
+    const existing = await tx.product_variants.findMany({
+      where: { product_id: productId },
+    });
+    const existingByKey = new Map(
+      existing.map((v) => [`${v.size_id}-${v.color_id}`, v]),
+    );
+    const activeKeys = new Set(variants.map((v) => `${v.sizeId}-${v.colorId}`));
 
-    await tx.product_variants.createMany({
-      data: variants.map((variant) => ({
-        product_id: productId,
-        size_id: BigInt(variant.sizeId),
-        color_id: BigInt(variant.colorId),
-      })),
-    });
-    await tx.product_sizes.createMany({
-      data: sizeIds.map((sizeId) => ({
-        product_id: productId,
-        size_id: sizeId,
-      })),
-    });
-    await tx.product_colors.createMany({
-      data: colorIds.map((colorId) => ({
-        product_id: productId,
-        color_id: colorId,
-      })),
-    });
+    for (const variant of variants) {
+      const key = `${variant.sizeId}-${variant.colorId}`;
+      const current = existingByKey.get(key);
+      if (!current) {
+        await tx.product_variants.create({
+          data: {
+            product_id: productId,
+            size_id: BigInt(variant.sizeId),
+            color_id: BigInt(variant.colorId),
+          },
+        });
+      } else if (!current.is_active) {
+        await tx.product_variants.update({
+          where: { id: current.id },
+          data: { is_active: true },
+        });
+      }
+    }
+
+    for (const current of existing) {
+      const key = `${current.size_id}-${current.color_id}`;
+      if (!activeKeys.has(key) && current.is_active) {
+        await tx.product_variants.update({
+          where: { id: current.id },
+          data: { is_active: false },
+        });
+      }
+    }
   }
 }

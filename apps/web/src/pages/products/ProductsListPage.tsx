@@ -16,6 +16,7 @@ const SEARCH_DEBOUNCE_MS = 350;
 export function ProductsListPage() {
   const notify = useNotify();
   const [search, setSearch] = useState('');
+  const [showInactive, setShowInactive] = useState(false);
   const [products, setProducts] = useState<Product[] | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -24,7 +25,7 @@ export function ProductsListPage() {
 
     const timer = setTimeout(() => {
       setLoading(true);
-      listProducts({ search: search.trim() || undefined })
+      listProducts({ search: search.trim() || undefined, includeInactive: showInactive })
         .then((res) => {
           if (cancelled) return;
           setProducts(res.items);
@@ -47,7 +48,7 @@ export function ProductsListPage() {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [search, notify]);
+  }, [search, showInactive, notify]);
 
   return (
     <div className="products-list">
@@ -66,12 +67,22 @@ export function ProductsListPage() {
         </div>
       </header>
 
-      <Input
-        label="Buscar"
-        placeholder="Nombre o código, ej. blusa satin"
-        value={search}
-        onChange={(event) => setSearch(event.target.value)}
-      />
+      <div className="products-list__filters">
+        <Input
+          label="Buscar"
+          placeholder="Nombre o código, ej. blusa satin"
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+        />
+        <label className="products-list__checkbox">
+          <input
+            type="checkbox"
+            checked={showInactive}
+            onChange={(event) => setShowInactive(event.target.checked)}
+          />
+          Mostrar inactivos
+        </label>
+      </div>
 
       {loading ? (
         <Loading label="Buscando productos…" />
@@ -101,6 +112,9 @@ export function ProductsListPage() {
                 <div className="product-row__main">
                   <span className="product-row__name">{product.name}</span>
                   <span className="product-row__code">{product.code}</span>
+                  {!product.isAvailableForSale ? (
+                    <span className="product-row__badge">Inactivo</span>
+                  ) : null}
                 </div>
                 <div className="product-row__meta">
                   <span>{product.category.name}</span>

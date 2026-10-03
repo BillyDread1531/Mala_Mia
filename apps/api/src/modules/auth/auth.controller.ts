@@ -4,6 +4,7 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Patch,
   Post,
   Req,
   Res,
@@ -15,6 +16,7 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import type { AppConfig } from '../../config/configuration';
 import { toAuthenticatedUser } from '../users/user.mapper';
 import { AuthService } from './auth.service';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { LoginDto } from './dto/login.dto';
 import { SessionAuthGuard } from './session-auth.guard';
 import {
@@ -84,6 +86,20 @@ export class AuthController {
       await this.authService.logout(token);
     }
     res.clearCookie(SESSION_COOKIE_NAME, this.cookieOptions());
+    return { success: true };
+  }
+
+  @UseGuards(SessionAuthGuard)
+  @Patch('password')
+  async changePassword(
+    @Body() dto: ChangePasswordDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<{ success: true }> {
+    await this.authService.changePassword(
+      BigInt(user.id),
+      dto.currentPassword,
+      dto.newPassword,
+    );
     return { success: true };
   }
 }

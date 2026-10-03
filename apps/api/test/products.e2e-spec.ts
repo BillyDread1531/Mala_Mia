@@ -23,6 +23,9 @@ interface ProductViewBody {
   cost: string | null;
   salePrice: string | null;
   recommendedPrice: string | null;
+  waistMeasurement: string | null;
+  lengthMeasurement: string | null;
+  isAvailableForSale: boolean;
   variantCount: number;
   variants: {
     sizeId: string;
@@ -132,6 +135,12 @@ describe('Products (e2e)', () => {
     await prisma.products.deleteMany({
       where: { name: { startsWith: TEST_NAME_PREFIX } },
     });
+    const testUser = await prisma.users.findUnique({
+      where: { username: TEST_USERNAME },
+    });
+    if (testUser) {
+      await prisma.audit_logs.deleteMany({ where: { user_id: testUser.id } });
+    }
     await prisma.users.deleteMany({ where: { username: TEST_USERNAME } });
     await app.close();
   });
@@ -271,6 +280,93 @@ describe('Products (e2e)', () => {
     it('sin sesión responde 401', () => {
       return request(app.getHttpServer()).get('/products').expect(401);
     });
+
+    it('por defecto excluye productos inactivos; includeInactive=true los incluye', async () => {
+      const create = await authed(
+        request(app.getHttpServer())
+          .post('/products')
+          .send({
+            name: 'E2E Producto Inactivo',
+            categoryId: Number(blusasId),
+            variants: [],
+          }),
+      ).expect(201);
+      const id = (create.body as ProductViewBody).id;
+
+      await authed(
+        request(app.getHttpServer())
+          .patch(`/products/${id}/active`)
+          .send({ isActive: false }),
+      ).expect(200);
+
+      const defaultList = await authed(
+        request(app.getHttpServer())
+          .get('/products')
+          .query({ search: 'E2E Producto Inactivo' }),
+      ).expect(200);
+      expect(
+        (defaultList.body as ListResponseBody).items.some((p) => p.id === id),
+      ).toBe(false);
+
+      const fullList = await authed(
+        request(app.getHttpServer())
+          .get('/products')
+          .query({ search: 'E2E Producto Inactivo', includeInactive: 'true' }),
+      ).expect(200);
+      const found = (fullList.body as ListResponseBody).items.find(
+        (p) => p.id === id,
+      );
+      expect(found).toBeDefined();
+      expect(found?.isAvailableForSale).toBe(false);
+    });
+  });
+
+  describe('PATCH /products/:id/active', () => {
+    it('desactiva y reactiva un producto', async () => {
+      const create = await authed(
+        request(app.getHttpServer())
+          .post('/products')
+          .send({
+            name: 'E2E Producto Activable',
+            categoryId: Number(blusasId),
+            variants: [],
+          }),
+      ).expect(201);
+      const id = (create.body as ProductViewBody).id;
+
+      const deactivated = await authed(
+        request(app.getHttpServer())
+          .patch(`/products/${id}/active`)
+          .send({ isActive: false }),
+      ).expect(200);
+      expect((deactivated.body as ProductViewBody).isAvailableForSale).toBe(
+        false,
+      );
+
+      const reactivated = await authed(
+        request(app.getHttpServer())
+          .patch(`/products/${id}/active`)
+          .send({ isActive: true }),
+      ).expect(200);
+      expect((reactivated.body as ProductViewBody).isAvailableForSale).toBe(
+        true,
+      );
+    });
+
+    it('producto inexistente responde 404', () => {
+      return authed(
+        request(app.getHttpServer())
+          .patch('/products/999999999/active')
+          .send({ isActive: false }),
+      ).expect(404);
+    });
+
+    it('sin sesión responde 401', () => {
+      return request(app.getHttpServer())
+        .patch('/products/1/active')
+        .send({ isActive: false })
+        .expect(401);
+    });
   });
 
   describe('GET /products/:id', () => {
@@ -330,6 +426,219 @@ describe('Products (e2e)', () => {
       expect(body.name).toBe('E2E Producto Editado');
       expect(body.cost).toBe('80');
       expect(body.variantCount).toBe(2);
+    });
+
+    it('guarda y luego borra medidas de cintura/largo (pantalones)', async () => {
+      const create = await authed(
+        request(app.getHttpServer())
+          .post('/products')
+          .send({
+            name: 'E2E Pantalón con Medidas',
+            categoryId: Number(blusasId),
+            waistMeasurement: 76,
+            lengthMeasurement: 102,
+            variants: [],
+          }),
+      ).expect(201);
+      const created = create.body as ProductViewBody;
+      expect(created.waistMeasurement).toBe('76');
+      expect(created.lengthMeasurement).toBe('102');
+
+      const updated = await authed(
+        request(app.getHttpServer())
+          .patch(`/products/${created.id}`)
+          .send({ waistMeasurement: 80 }),
+      ).expect(200);
+      const updatedBody = updated.body as ProductViewBody;
+      expect(updatedBody.waistMeasurement).toBe('80');
+      expect(updatedBody.lengthMeasurement).toBe('102'); // sin cambios
+
+      const cleared = await authed(
+        request(app.getHttpServer())
+          .patch(`/products/${created.id}`)
+          .send({ waistMeasurement: null, lengthMeasurement: null }),
+      ).expect(200);
+      const clearedBody = cleared.body as ProductViewBody;
+      expect(clearedBody.waistMeasurement).toBeNull();
+      expect(clearedBody.lengthMeasurement).toBeNull();
+    });
+
+    it('al desmarcar una combinación, la desactiva en vez de borrarla (preserva historial)', async () => {
+      const create = await authed(
+        request(app.getHttpServer())
+          .post('/products')
+          .send({
+            name: 'E2E Producto Combo Historial',
+            categoryId: Number(blusasId),
+            variants: [
+              { sizeId: Number(sizeS), colorId: Number(colorBeige) },
+              { sizeId: Number(sizeM), colorId: Number(colorRojo) },
+            ],
+          }),
+      ).expect(201);
+      const id = (create.body as ProductViewBody).id;
+      const beforeRow = await prisma.product_variants.findFirstOrThrow({
+        where: {
+          product_id: BigInt(id),
+          size_id: sizeM,
+          color_id: colorRojo,
+        },
+      });
+
+      // Desmarca M/Rojo (solo deja S/Beige).
+      const afterDisable = await authed(
+        request(app.getHttpServer())
+          .patch(`/products/${id}`)
+          .send({
+            variants: [{ sizeId: Number(sizeS), colorId: Number(colorBeige) }],
+          }),
+      ).expect(200);
+
+      const bodyDisabled = afterDisable.body as ProductViewBody;
+      expect(bodyDisabled.variantCount).toBe(1);
+      expect(
+        bodyDisabled.variants.some(
+          (v) => v.sizeId === String(sizeM) && v.colorId === String(colorRojo),
+        ),
+      ).toBe(false); // desaparece como combinación activa
+
+      const disabledRow = await prisma.product_variants.findUnique({
+        where: { id: beforeRow.id },
+      });
+      expect(disabledRow).not.toBeNull(); // nunca se borra
+      expect(disabledRow?.is_active).toBe(false);
+
+      // Vuelve a marcarla: debe reactivar la MISMA fila, no crear una nueva.
+      const afterReenable = await authed(
+        request(app.getHttpServer())
+          .patch(`/products/${id}`)
+          .send({
+            variants: [
+              { sizeId: Number(sizeS), colorId: Number(colorBeige) },
+              { sizeId: Number(sizeM), colorId: Number(colorRojo) },
+            ],
+          }),
+      ).expect(200);
+
+      const bodyReenabled = afterReenable.body as ProductViewBody;
+      expect(bodyReenabled.variantCount).toBe(2);
+      const reenabledRow = await prisma.product_variants.findUnique({
+        where: { id: beforeRow.id },
+      });
+      expect(reenabledRow?.is_active).toBe(true);
+      expect(reenabledRow?.id).toBe(beforeRow.id); // misma fila reutilizada
+    });
+  });
+
+  describe('PATCH /products/:id/variants', () => {
+    it('agrega una combinación nueva sin tocar las que ya existían', async () => {
+      const create = await authed(
+        request(app.getHttpServer())
+          .post('/products')
+          .send({
+            name: 'E2E Producto Agregar Variantes',
+            categoryId: Number(blusasId),
+            variants: [{ sizeId: Number(sizeS), colorId: Number(colorBeige) }],
+          }),
+      ).expect(201);
+      const id = (create.body as ProductViewBody).id;
+
+      const res = await authed(
+        request(app.getHttpServer())
+          .patch(`/products/${id}/variants`)
+          .send({
+            variants: [{ sizeId: Number(sizeM), colorId: Number(colorRojo) }],
+          }),
+      ).expect(200);
+
+      const body = res.body as ProductViewBody;
+      expect(body.variantCount).toBe(2);
+      expect(
+        body.variants.some(
+          (v) => v.sizeId === String(sizeS) && v.colorId === String(colorBeige),
+        ),
+      ).toBe(true);
+      expect(
+        body.variants.some(
+          (v) => v.sizeId === String(sizeM) && v.colorId === String(colorRojo),
+        ),
+      ).toBe(true);
+    });
+
+    it('funciona en un producto creado sin ninguna combinación', async () => {
+      const create = await authed(
+        request(app.getHttpServer())
+          .post('/products')
+          .send({
+            name: 'E2E Producto Sin Variantes',
+            categoryId: Number(blusasId),
+            variants: [],
+          }),
+      ).expect(201);
+      const id = (create.body as ProductViewBody).id;
+      expect((create.body as ProductViewBody).variantCount).toBe(0);
+
+      const res = await authed(
+        request(app.getHttpServer())
+          .patch(`/products/${id}/variants`)
+          .send({
+            variants: [{ sizeId: Number(sizeS), colorId: Number(colorBeige) }],
+          }),
+      ).expect(200);
+
+      expect((res.body as ProductViewBody).variantCount).toBe(1);
+    });
+
+    it('reactiva una combinación previamente desactivada en vez de duplicarla', async () => {
+      const create = await authed(
+        request(app.getHttpServer())
+          .post('/products')
+          .send({
+            name: 'E2E Producto Reactivar Variante',
+            categoryId: Number(blusasId),
+            variants: [{ sizeId: Number(sizeS), colorId: Number(colorBeige) }],
+          }),
+      ).expect(201);
+      const id = (create.body as ProductViewBody).id;
+
+      await authed(
+        request(app.getHttpServer())
+          .patch(`/products/${id}`)
+          .send({ variants: [] }),
+      ).expect(200);
+      const deactivated = await prisma.product_variants.findFirstOrThrow({
+        where: { product_id: BigInt(id) },
+      });
+      expect(deactivated.is_active).toBe(false);
+
+      await authed(
+        request(app.getHttpServer())
+          .patch(`/products/${id}/variants`)
+          .send({
+            variants: [{ sizeId: Number(sizeS), colorId: Number(colorBeige) }],
+          }),
+      ).expect(200);
+
+      const reactivated = await prisma.product_variants.findUnique({
+        where: { id: deactivated.id },
+      });
+      expect(reactivated?.is_active).toBe(true);
+      expect(reactivated?.id).toBe(deactivated.id);
+    });
+
+    it('producto inexistente responde 404', () => {
+      return authed(
+        request(app.getHttpServer())
+          .patch('/products/999999999/variants')
+          .send({ variants: [{ sizeId: 1, colorId: 1 }] }),
+      ).expect(404);
+    });
+
+    it('sin sesión responde 401', () => {
+      return request(app.getHttpServer())
+        .patch('/products/1/variants')
+        .send({ variants: [{ sizeId: 1, colorId: 1 }] })
+        .expect(401);
     });
   });
 

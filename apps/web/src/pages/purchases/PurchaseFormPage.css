@@ -36,6 +36,31 @@
   }
 }
 
+.purchase-form__measurements {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  background: var(--color-bg-cream);
+  border-radius: var(--radius-md);
+}
+
+.purchase-form__measurements-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.purchase-form__recommended {
+  font-size: 14px;
+  color: var(--color-text-muted);
+}
+
+.purchase-form__recommended strong {
+  color: var(--color-accent-strong);
+  font-size: 16px;
+}
+
 .purchase-form__inline-create {
   display: flex;
   flex-direction: column;
@@ -152,6 +177,18 @@
   font-size: 13px;
   color: var(--color-text-muted);
   text-align: right;
+}
+
+
+.purchase-form__shipping {
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--color-border);
+}
+
+.purchase-form__subtotal-hint {
+  text-align: right;
+  font-size: 12px;
+  color: var(--color-text-muted);
 }
 
 .purchase-form__total {

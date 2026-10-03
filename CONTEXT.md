@@ -1036,3 +1036,7 @@ Convertir la duda en una decisión explícita y documentarla.
 MALA MÍA debe crecer de forma ordenada, profesional, económica, mantenible y fácil de usar.
 
 # FIN DEL CONTEXTO MAESTRO
+
+
+cd apps/api && npm run start     # o npm run start:dev para hot-reload
+cd apps/web && npm run dev

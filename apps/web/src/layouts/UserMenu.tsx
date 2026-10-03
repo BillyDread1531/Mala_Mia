@@ -1,15 +1,25 @@
 import { useEffect, useRef, useState } from 'react';
-import { BellIcon, ChevronDownIcon, LogoutIcon } from '../components/icons';
+import { Link } from 'react-router-dom';
+import { ChevronDownIcon, LogoutIcon } from '../components/icons';
 import { useAuth } from '../auth/useAuth';
 import { useNotify } from '../notifications/useNotify';
+import { applyTheme, getStoredTheme } from '../theme/theme';
 import { MORE_ENTRIES } from './nav-items';
+import { NotificationBell } from './NotificationBell';
 import './UserMenu.css';
 
 export function UserMenu() {
   const { user, logout } = useAuth();
   const notify = useNotify();
   const [open, setOpen] = useState(false);
+  const [isDark, setIsDark] = useState(() => getStoredTheme() === 'dark');
   const menuRef = useRef<HTMLDivElement>(null);
+
+  function handleToggleTheme() {
+    const next = isDark ? 'light' : 'dark';
+    applyTheme(next);
+    setIsDark(next === 'dark');
+  }
 
   useEffect(() => {
     if (!open) return;
@@ -33,14 +43,7 @@ export function UserMenu() {
 
   return (
     <div className="user-menu">
-      <button
-        type="button"
-        className="user-menu__bell"
-        aria-label="Notificaciones"
-        onClick={() => notify.info('No tienes notificaciones nuevas.')}
-      >
-        <BellIcon />
-      </button>
+      <NotificationBell />
 
       <div className="user-menu__dropdown" ref={menuRef}>
         <button
@@ -63,21 +66,44 @@ export function UserMenu() {
             </div>
 
             <div className="user-menu__section">
-              {MORE_ENTRIES.map((entry) => (
-                <button
-                  key={entry.label}
-                  type="button"
-                  role="menuitem"
-                  className="user-menu__item"
-                  onClick={() => {
-                    setOpen(false);
-                    notify.info(`"${entry.label}" estará disponible próximamente.`);
-                  }}
-                >
-                  {entry.label}
-                </button>
-              ))}
+              {MORE_ENTRIES.map((entry) =>
+                entry.to ? (
+                  <Link
+                    key={entry.label}
+                    to={entry.to}
+                    role="menuitem"
+                    className="user-menu__item"
+                    onClick={() => setOpen(false)}
+                  >
+                    {entry.label}
+                  </Link>
+                ) : (
+                  <button
+                    key={entry.label}
+                    type="button"
+                    role="menuitem"
+                    className="user-menu__item"
+                    onClick={() => {
+                      setOpen(false);
+                      notify.info(`"${entry.label}" estará disponible próximamente.`);
+                    }}
+                  >
+                    {entry.label}
+                  </button>
+                ),
+              )}
             </div>
+
+            <label className="user-menu__theme-toggle">
+              Modo oscuro
+              <input
+                type="checkbox"
+                role="switch"
+                aria-checked={isDark}
+                checked={isDark}
+                onChange={handleToggleTheme}
+              />
+            </label>
 
             <button
               type="button"

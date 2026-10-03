@@ -3,19 +3,24 @@ import './StatCard.css';
 
 interface StatCardProps {
   label: string;
+  value?: string;
   hint?: string;
+  loading?: boolean;
+  error?: boolean;
 }
 
-/**
- * Sin datos reales todavía (Fase 3 es solo estructura visual). El "—"
- * es deliberado para no simular una cifra real como haría un "0".
- */
-export function StatCard({ label, hint }: StatCardProps) {
+export function StatCard({ label, value, hint, loading = false, error = false }: StatCardProps) {
   return (
     <Card className="stat-card">
       <span className="stat-card__label">{label}</span>
-      <span className="stat-card__value">—</span>
-      {hint ? <span className="stat-card__hint">{hint}</span> : null}
+      {loading ? (
+        <span className="stat-card__skeleton" aria-hidden="true" />
+      ) : (
+        <span className="stat-card__value">{error ? '—' : (value ?? '—')}</span>
+      )}
+      {!loading && hint ? (
+        <span className={`stat-card__hint${error ? ' stat-card__hint--error' : ''}`}>{hint}</span>
+      ) : null}
     </Card>
   );
 }

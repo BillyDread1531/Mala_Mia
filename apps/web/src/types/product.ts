@@ -19,6 +19,9 @@ export interface Product {
   cost: string | null;
   salePrice: string | null;
   recommendedPrice: string | null;
+  /** Medidas opcionales (cm), usadas principalmente en pantalones. */
+  waistMeasurement: string | null;
+  lengthMeasurement: string | null;
   isAvailableForSale: boolean;
   variantCount: number;
   variants: ProductVariant[];
@@ -45,5 +48,7 @@ export interface ProductFormInput {
   description?: string;
   cost?: number;
   salePrice?: number;
+  waistMeasurement?: number | null;
+  lengthMeasurement?: number | null;
   variants: VariantInput[];
 }

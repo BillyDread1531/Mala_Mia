@@ -43,6 +43,19 @@ export class UpdateProductDto {
   @Min(0)
   salePrice?: number;
 
+  /** Medidas opcionales (cm), usadas principalmente en pantalones. `null`
+   * borra una medida ya guardada (a diferencia de `undefined`, que la deja
+   * sin cambios). */
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  waistMeasurement?: number | null;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  lengthMeasurement?: number | null;
+
   /** Si se envía, reemplaza el conjunto completo de combinaciones activas. */
   @IsOptional()
   @IsArray()

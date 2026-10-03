@@ -1,11 +1,13 @@
 import { Outlet } from 'react-router-dom';
 import { AppHeader } from '../components/AppHeader';
 import { useBreakpoint } from '../hooks/useBreakpoint';
+import { useRouteMemory } from '../routes/useRouteMemory';
 import { MobileNavigation } from './MobileNavigation';
 import './AppLayout.css';
 
 export function AppLayout() {
   const breakpoint = useBreakpoint();
+  useRouteMemory();
 
   return (
     <div className="app-layout">

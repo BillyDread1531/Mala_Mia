@@ -14,13 +14,14 @@
 .app-header__brand {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-2);
   text-decoration: none;
-  color: var(--color-text);
-  font-weight: 700;
-  font-size: 17px;
-  letter-spacing: 0.01em;
   flex-shrink: 0;
+}
+
+.app-header__logo {
+  height: 30px;
+  width: auto;
+  display: block;
 }
 
 .app-header__actions {

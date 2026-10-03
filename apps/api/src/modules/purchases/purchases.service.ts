@@ -5,6 +5,8 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { MOVEMENT_TYPES } from '../finance/finance.constants';
+import { FinanceService } from '../finance/finance.service';
 import { InventoryService } from '../inventory/inventory.service';
 import { CreatePurchaseDto } from './dto/create-purchase.dto';
 import { QueryPurchasesDto } from './dto/query-purchases.dto';
@@ -30,6 +32,7 @@ export class PurchasesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly inventoryService: InventoryService,
+    private readonly financeService: FinanceService,
   ) {}
 
   private async generatePurchaseNumber(): Promise<string> {
@@ -45,14 +48,17 @@ export class PurchasesService {
     const page = query.page ?? 1;
     const pageSize = query.pageSize ?? 20;
 
-    const where: Prisma.purchasesWhereInput = query.search?.trim()
-      ? {
-          OR: [
-            { purchase_number: { contains: query.search.trim() } },
-            { suppliers: { name: { contains: query.search.trim() } } },
-          ],
-        }
-      : {};
+    const where: Prisma.purchasesWhereInput = {
+      ...(query.search?.trim()
+        ? {
+            OR: [
+              { purchase_number: { contains: query.search.trim() } },
+              { suppliers: { name: { contains: query.search.trim() } } },
+            ],
+          }
+        : {}),
+      ...(query.supplierId ? { supplier_id: BigInt(query.supplierId) } : {}),
+    };
 
     const [items, total] = await this.prisma.$transaction([
       this.prisma.purchases.findMany({
@@ -110,6 +116,8 @@ export class PurchasesService {
       new Prisma.Decimal(0),
     );
 
+    const shippingCost = new Prisma.Decimal(dto.shippingCost ?? 0);
+    const totalCost = goodsTotal.plus(shippingCost);
     const purchaseNumber = await this.generatePurchaseNumber();
 
     const created = await this.prisma.$transaction(async (tx) => {
@@ -119,8 +127,8 @@ export class PurchasesService {
           purchase_number: purchaseNumber,
           payment_method_id: BigInt(dto.paymentMethodId),
           goods_total: goodsTotal,
-          additional_cost: new Prisma.Decimal(0),
-          total_cost: goodsTotal,
+          additional_cost: shippingCost,
+          total_cost: totalCost,
           cost_mode: 'INDIVIDUAL',
           notes: dto.notes?.trim() || null,
           created_by: createdBy,
@@ -140,6 +148,17 @@ export class PurchasesService {
         })),
       });
 
+      if (shippingCost.greaterThan(0)) {
+        await tx.purchase_additional_costs.create({
+          data: {
+            purchase_id: purchase.id,
+            cost_type: 'SHIPPING',
+            description: 'Transporte',
+            amount: shippingCost,
+          },
+        });
+      }
+
       // Misma transacción: si esto falla, la compra tampoco queda creada.
       await this.inventoryService.applyPurchaseEntries(
         tx,
@@ -147,6 +166,17 @@ export class PurchasesService {
         dto.items,
         createdBy,
       );
+
+      await this.financeService.recordMovement(tx, {
+        movementType: MOVEMENT_TYPES.PURCHASE,
+        direction: 'OUT',
+        amount: purchase.total_cost,
+        paymentMethodId: purchase.payment_method_id,
+        referenceType: 'purchase',
+        referenceId: purchase.id,
+        description: `Compra #${purchaseNumber} — ${supplier.name}`,
+        createdBy,
+      });
 
       return tx.purchases.findUniqueOrThrow({
         where: { id: purchase.id },

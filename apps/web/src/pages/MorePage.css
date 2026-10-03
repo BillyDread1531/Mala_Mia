@@ -15,6 +15,7 @@
   box-shadow: var(--shadow-sm);
   padding: var(--space-5);
   color: var(--color-text);
+  text-decoration: none;
 }
 
 .more-page__item:hover {

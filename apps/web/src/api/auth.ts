@@ -19,3 +19,13 @@ export function fetchCurrentUser(): Promise<UserResponse> {
 export function logout(): Promise<{ success: true }> {
   return apiFetch<{ success: true }>('/auth/logout', { method: 'POST' });
 }
+
+export function changePassword(
+  currentPassword: string,
+  newPassword: string,
+): Promise<{ success: true }> {
+  return apiFetch<{ success: true }>('/auth/password', {
+    method: 'PATCH',
+    body: JSON.stringify({ currentPassword, newPassword }),
+  });
+}

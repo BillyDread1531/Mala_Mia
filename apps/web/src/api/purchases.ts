@@ -3,6 +3,7 @@ import { apiFetch } from './client';
 
 export interface ListPurchasesParams {
   search?: string;
+  supplierId?: number;
   page?: number;
   pageSize?: number;
 }

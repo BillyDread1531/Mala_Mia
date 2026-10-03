@@ -13,6 +13,14 @@ import { ProductsModule } from './modules/products/products.module';
 import { SuppliersModule } from './modules/suppliers/suppliers.module';
 import { PurchasesModule } from './modules/purchases/purchases.module';
 import { InventoryModule } from './modules/inventory/inventory.module';
+import { SalesModule } from './modules/sales/sales.module';
+import { AvailabilityModule } from './modules/availability/availability.module';
+import { FinanceModule } from './modules/finance/finance.module';
+import { ExpensesModule } from './modules/expenses/expenses.module';
+import { SettingsModule } from './modules/settings/settings.module';
+import { ReportsModule } from './modules/reports/reports.module';
+import { AuditModule } from './modules/audit/audit.module';
+import { ConsumablesModule } from './modules/consumables/consumables.module';
 
 @Module({
   imports: [
@@ -33,6 +41,14 @@ import { InventoryModule } from './modules/inventory/inventory.module';
     SuppliersModule,
     PurchasesModule,
     InventoryModule,
+    SalesModule,
+    AvailabilityModule,
+    FinanceModule,
+    ExpensesModule,
+    SettingsModule,
+    ReportsModule,
+    AuditModule,
+    ConsumablesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

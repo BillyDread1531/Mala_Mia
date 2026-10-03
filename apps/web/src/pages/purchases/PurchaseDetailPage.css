@@ -78,3 +78,8 @@
   color: var(--color-accent-strong);
   font-size: 22px;
 }
+
+.purchase-detail__actions {
+  display: flex;
+  justify-content: flex-end;
+}

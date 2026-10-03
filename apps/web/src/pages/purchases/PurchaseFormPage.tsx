@@ -3,11 +3,20 @@ import { useNavigate } from 'react-router-dom';
 import { listCategories, listColors, listPaymentMethods, listSizes } from '../../api/catalog';
 import { ApiError } from '../../api/client';
 import { createPurchase } from '../../api/purchases';
-import { checkDuplicates, createProduct, generateCode, listProducts } from '../../api/products';
+import {
+  addProductVariants,
+  checkDuplicates,
+  createProduct,
+  generateCode,
+  listProducts,
+  previewRecommendedPrice,
+  updateProduct,
+} from '../../api/products';
 import { createSupplier, listSuppliers } from '../../api/suppliers';
 import { Button } from '../../components/Button';
 import { Card } from '../../components/Card';
 import { Input } from '../../components/Input';
+import { formatMoney } from '../../lib/money';
 import { useNotify } from '../../notifications/useNotify';
 import type { Category, Color, PaymentMethod, Size } from '../../types/catalog';
 import type { Product } from '../../types/product';
@@ -17,6 +26,7 @@ import { comboKey, computeActiveVariants } from '../products/variantCombo';
 import './PurchaseFormPage.css';
 
 const PRODUCT_SEARCH_DEBOUNCE_MS = 300;
+const RECOMMENDED_PRICE_DEBOUNCE_MS = 300;
 
 interface CartLine {
   key: string;
@@ -34,10 +44,6 @@ interface CartLine {
 interface VariantEntry {
   quantity: string;
   unitCost: string;
-}
-
-function formatMoney(value: number): string {
-  return value.toFixed(2).replace(/\.00$/, '');
 }
 
 export function PurchaseFormPage() {
@@ -69,6 +75,24 @@ export function PurchaseFormPage() {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [variantEntries, setVariantEntries] = useState<Record<string, VariantEntry>>({});
 
+  // Picker de tallas/colores para el producto seleccionado: cada compra es
+  // su propia factura, así que aquí se puede declarar cualquier combinación
+  // (no solo las que el producto ya tenía), incluyendo tallas/colores
+  // creados al vuelo. No afecta combinaciones de compras anteriores: solo se
+  // agregan las que terminan con cantidad > 0 (ver `addProductVariants`).
+  const [pickerSizeIds, setPickerSizeIds] = useState<Set<number>>(new Set());
+  const [pickerColorIds, setPickerColorIds] = useState<Set<number>>(new Set());
+  const [pickerDisabledCombos, setPickerDisabledCombos] = useState<Set<string>>(new Set());
+  const [addingToCart, setAddingToCart] = useState(false);
+
+  // Medidas del producto seleccionado (opcional, sobre todo pantalones):
+  // se editan aquí mismo para no tener que salir a Inventario a cada rato.
+  const [waistMeasurement, setWaistMeasurement] = useState('');
+  const [lengthMeasurement, setLengthMeasurement] = useState('');
+  const [savingMeasurements, setSavingMeasurements] = useState(false);
+
+  const [shippingCost, setShippingCost] = useState('');
+
   // Creación de producto inline
   const [showNewProduct, setShowNewProduct] = useState(false);
   const [newProductName, setNewProductName] = useState('');
@@ -82,6 +106,9 @@ export function PurchaseFormPage() {
   const [newProductDuplicates, setNewProductDuplicates] = useState<Product[]>([]);
   const [newProductDuplicatesDismissed, setNewProductDuplicatesDismissed] = useState(false);
   const [creatingProduct, setCreatingProduct] = useState(false);
+  const [newProductRecommendedPrice, setNewProductRecommendedPrice] = useState<string | null>(
+    null,
+  );
 
   const [cart, setCart] = useState<CartLine[]>([]);
 
@@ -119,9 +146,49 @@ export function PurchaseFormPage() {
       .catch(() => undefined);
   }, [newProductCategoryId]);
 
+  // Precio recomendado en vivo, igual que en el formulario de Productos.
+  useEffect(() => {
+    const costNumber = Number(newProductCost);
+    if (newProductCost.trim() === '' || Number.isNaN(costNumber)) return;
+
+    const timer = setTimeout(() => {
+      previewRecommendedPrice(costNumber)
+        .then((res) => setNewProductRecommendedPrice(res.recommendedPrice))
+        .catch(() => undefined);
+    }, RECOMMENDED_PRICE_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [newProductCost]);
+
+  const newProductRecommended =
+    newProductCost.trim() === '' || Number.isNaN(Number(newProductCost))
+      ? null
+      : newProductRecommendedPrice;
+
   function selectProduct(product: Product) {
     setSelectedProduct(product);
     setProductSearch('');
+
+    // Precarga el picker con las combinaciones que el producto ya maneja
+    // (comodidad para compras repetidas); se pueden agregar más tallas,
+    // colores o combinaciones sueltas sin perder esto.
+    const sizeIds = new Set(product.variants.map((v) => Number(v.sizeId)));
+    const colorIds = new Set(product.variants.map((v) => Number(v.colorId)));
+    const enabledKeys = new Set(
+      product.variants.map((v) => comboKey(Number(v.sizeId), Number(v.colorId))),
+    );
+    const disabled = new Set<string>();
+    for (const sizeId of sizeIds) {
+      for (const colorId of colorIds) {
+        const key = comboKey(sizeId, colorId);
+        if (!enabledKeys.has(key)) disabled.add(key);
+      }
+    }
+    setPickerSizeIds(sizeIds);
+    setPickerColorIds(colorIds);
+    setPickerDisabledCombos(disabled);
+    setWaistMeasurement(product.waistMeasurement ?? '');
+    setLengthMeasurement(product.lengthMeasurement ?? '');
+
     const initial: Record<string, VariantEntry> = {};
     for (const variant of product.variants) {
       initial[comboKey(Number(variant.sizeId), Number(variant.colorId))] = {
@@ -130,6 +197,33 @@ export function PurchaseFormPage() {
       };
     }
     setVariantEntries(initial);
+  }
+
+  function clearProductSelection() {
+    setSelectedProduct(null);
+    setVariantEntries({});
+    setPickerSizeIds(new Set());
+    setPickerColorIds(new Set());
+    setPickerDisabledCombos(new Set());
+    setWaistMeasurement('');
+    setLengthMeasurement('');
+  }
+
+  async function handleSaveMeasurements() {
+    if (!selectedProduct) return;
+    setSavingMeasurements(true);
+    try {
+      const updated = await updateProduct(String(selectedProduct.id), {
+        waistMeasurement: waistMeasurement.trim() ? Number(waistMeasurement) : null,
+        lengthMeasurement: lengthMeasurement.trim() ? Number(lengthMeasurement) : null,
+      });
+      setSelectedProduct(updated);
+      notify.success('Medidas guardadas.');
+    } catch (error) {
+      notify.error(error instanceof ApiError ? error.message : 'No se pudieron guardar las medidas.');
+    } finally {
+      setSavingMeasurements(false);
+    }
   }
 
   function handleNewProductNameBlur() {
@@ -198,25 +292,39 @@ export function PurchaseFormPage() {
     }
   }
 
-  function addSelectedVariantsToCart() {
+  const activeCombos = useMemo(
+    () => computeActiveVariants(pickerSizeIds, pickerColorIds, pickerDisabledCombos),
+    [pickerSizeIds, pickerColorIds, pickerDisabledCombos],
+  );
+
+  function sizeName(id: number): string {
+    return sizes.find((s) => Number(s.id) === id)?.name ?? '';
+  }
+  function colorName(id: number): string {
+    return colors.find((c) => Number(c.id) === id)?.name ?? '';
+  }
+
+  async function addSelectedVariantsToCart() {
     if (!selectedProduct) return;
     const newLines: CartLine[] = [];
-    for (const variant of selectedProduct.variants) {
-      const key = comboKey(Number(variant.sizeId), Number(variant.colorId));
+    const combosToDeclare: { sizeId: number; colorId: number }[] = [];
+    for (const { sizeId, colorId } of activeCombos) {
+      const key = comboKey(sizeId, colorId);
       const entry = variantEntries[key];
       const quantity = Number(entry?.quantity);
       const unitCost = Number(entry?.unitCost);
       if (!entry || !quantity || quantity <= 0 || Number.isNaN(unitCost) || unitCost < 0) continue;
 
+      combosToDeclare.push({ sizeId, colorId });
       newLines.push({
         key: `${selectedProduct.id}-${key}`,
         productId: Number(selectedProduct.id),
         productName: selectedProduct.name,
         productCode: selectedProduct.code,
-        sizeId: Number(variant.sizeId),
-        sizeName: variant.sizeName,
-        colorId: Number(variant.colorId),
-        colorName: variant.colorName,
+        sizeId,
+        sizeName: sizeName(sizeId),
+        colorId,
+        colorName: colorName(colorId),
         quantity,
         unitCost,
       });
@@ -227,13 +335,26 @@ export function PurchaseFormPage() {
       return;
     }
 
+    setAddingToCart(true);
+    try {
+      // No destructivo: solo agrega/reactiva estas combinaciones en el
+      // producto, sin desactivar ninguna de compras anteriores.
+      await addProductVariants(String(selectedProduct.id), combosToDeclare);
+    } catch (error) {
+      notify.error(
+        error instanceof ApiError ? error.message : 'No se pudieron guardar las combinaciones.',
+      );
+      setAddingToCart(false);
+      return;
+    }
+    setAddingToCart(false);
+
     setCart((prev) => {
       const map = new Map(prev.map((line) => [line.key, line]));
       for (const line of newLines) map.set(line.key, line);
       return [...map.values()];
     });
-    setSelectedProduct(null);
-    setVariantEntries({});
+    clearProductSelection();
   }
 
   function removeCartLine(key: string) {
@@ -275,10 +396,13 @@ export function PurchaseFormPage() {
 
     setSaving(true);
     try {
+      const shippingCostNumber = Number(shippingCost);
       const created = await createPurchase({
         supplierId: Number(supplierId),
         paymentMethodId: Number(paymentMethodId),
         notes: notes.trim() || undefined,
+        shippingCost:
+          shippingCost.trim() && shippingCostNumber > 0 ? shippingCostNumber : undefined,
         items: cart.map((line) => ({
           productId: line.productId,
           sizeId: line.sizeId,
@@ -494,6 +618,10 @@ export function PurchaseFormPage() {
                   onChange={(event) => setNewProductSalePrice(event.target.value)}
                 />
               </div>
+              <p className="purchase-form__recommended">
+                Precio recomendado:{' '}
+                <strong>{newProductRecommended ? `Q${newProductRecommended}` : '—'}</strong>
+              </p>
 
               <SizeColorPicker
                 sizes={sizes}
@@ -526,6 +654,8 @@ export function PurchaseFormPage() {
                     return next;
                   });
                 }}
+                onSizeCreated={(size) => setSizes((prev) => [...prev, size])}
+                onColorCreated={(color) => setColors((prev) => [...prev, color])}
               />
 
               <div className="purchase-form__inline-actions">
@@ -543,11 +673,83 @@ export function PurchaseFormPage() {
         <Card className="purchase-form__section">
           <h2 className="purchase-form__section-title">{selectedProduct.name}</h2>
           <p className="purchase-form__hint">
-            {selectedProduct.code} · Registra cantidad y costo de las combinaciones que compraste.
+            {selectedProduct.code} · Marca las tallas y colores que trae esta factura — puedes
+            agregar combinaciones que el producto nunca había manejado.
           </p>
 
-          {selectedProduct.variants.length === 0 ? (
-            <p className="purchase-form__hint">Este producto no tiene combinaciones activas.</p>
+          <div className="purchase-form__measurements">
+            <p className="purchase-form__measurements-label">
+              Medidas (opcional) — sobre todo en pantalones
+            </p>
+            <div className="purchase-form__row">
+              <Input
+                label="Cintura (cm)"
+                type="number"
+                min="0"
+                step="0.1"
+                value={waistMeasurement}
+                onChange={(event) => setWaistMeasurement(event.target.value)}
+              />
+              <Input
+                label="Largo (cm)"
+                type="number"
+                min="0"
+                step="0.1"
+                value={lengthMeasurement}
+                onChange={(event) => setLengthMeasurement(event.target.value)}
+              />
+            </div>
+            <div className="purchase-form__inline-actions">
+              <Button
+                type="button"
+                variant="ghost"
+                loading={savingMeasurements}
+                onClick={() => void handleSaveMeasurements()}
+              >
+                Guardar medidas
+              </Button>
+            </div>
+          </div>
+
+          <SizeColorPicker
+            sizes={sizes}
+            colors={colors}
+            selectedSizeIds={pickerSizeIds}
+            selectedColorIds={pickerColorIds}
+            disabledCombos={pickerDisabledCombos}
+            onToggleSize={(sizeId) =>
+              setPickerSizeIds((prev) => {
+                const next = new Set(prev);
+                if (next.has(sizeId)) next.delete(sizeId);
+                else next.add(sizeId);
+                return next;
+              })
+            }
+            onToggleColor={(colorId) =>
+              setPickerColorIds((prev) => {
+                const next = new Set(prev);
+                if (next.has(colorId)) next.delete(colorId);
+                else next.add(colorId);
+                return next;
+              })
+            }
+            onSizeCreated={(size) => setSizes((prev) => [...prev, size])}
+            onColorCreated={(color) => setColors((prev) => [...prev, color])}
+            onToggleCombo={(sizeId, colorId) => {
+              const key = comboKey(sizeId, colorId);
+              setPickerDisabledCombos((prev) => {
+                const next = new Set(prev);
+                if (next.has(key)) next.delete(key);
+                else next.add(key);
+                return next;
+              });
+            }}
+          />
+
+          {activeCombos.length === 0 ? (
+            <p className="purchase-form__hint">
+              Marca al menos una talla y un color arriba para ingresar cantidad y costo.
+            </p>
           ) : (
             <table className="purchase-form__variant-table">
               <thead>
@@ -558,13 +760,13 @@ export function PurchaseFormPage() {
                 </tr>
               </thead>
               <tbody>
-                {selectedProduct.variants.map((variant) => {
-                  const key = comboKey(Number(variant.sizeId), Number(variant.colorId));
-                  const entry = variantEntries[key] ?? { quantity: '', unitCost: '' };
+                {activeCombos.map(({ sizeId, colorId }) => {
+                  const key = comboKey(sizeId, colorId);
+                  const entry = variantEntries[key] ?? { quantity: '', unitCost: selectedProduct.cost ?? '' };
                   return (
                     <tr key={key}>
                       <td>
-                        {variant.sizeName} / {variant.colorName}
+                        {sizeName(sizeId)} / {colorName(colorId)}
                       </td>
                       <td>
                         <input
@@ -603,10 +805,10 @@ export function PurchaseFormPage() {
           )}
 
           <div className="purchase-form__inline-actions">
-            <Button type="button" variant="ghost" onClick={() => setSelectedProduct(null)}>
+            <Button type="button" variant="ghost" onClick={clearProductSelection}>
               Cancelar
             </Button>
-            <Button type="button" onClick={addSelectedVariantsToCart}>
+            <Button type="button" loading={addingToCart} onClick={() => void addSelectedVariantsToCart()}>
               Agregar a la compra
             </Button>
           </div>
@@ -625,10 +827,10 @@ export function PurchaseFormPage() {
                   {group.lines.map((line) => (
                     <li key={line.key}>
                       <span>
-                        {line.sizeName} / {line.colorName} → {line.quantity} × Q{formatMoney(line.unitCost)}
+                        {line.sizeName} / {line.colorName} → {line.quantity} × {formatMoney(line.unitCost)}
                       </span>
                       <span className="purchase-form__line-right">
-                        Q{formatMoney(line.quantity * line.unitCost)}
+                        {formatMoney(line.quantity * line.unitCost)}
                         <button
                           type="button"
                           className="purchase-form__remove-line"
@@ -641,13 +843,34 @@ export function PurchaseFormPage() {
                     </li>
                   ))}
                 </ul>
-                <p className="purchase-form__group-subtotal">Subtotal: Q{formatMoney(groupSubtotal)}</p>
+                <p className="purchase-form__group-subtotal">Subtotal: {formatMoney(groupSubtotal)}</p>
               </div>
             );
           })}
 
+          <div className="field purchase-form__shipping">
+            <label className="field__label" htmlFor="purchase-shipping-cost">
+              Costo de transporte (opcional)
+            </label>
+            <input
+              id="purchase-shipping-cost"
+              className="field__input"
+              type="number"
+              min="0"
+              step="0.01"
+              placeholder="0.00"
+              value={shippingCost}
+              onChange={(event) => setShippingCost(event.target.value)}
+            />
+          </div>
+
+          {Number(shippingCost) > 0 ? (
+            <p className="purchase-form__subtotal-hint">
+              Mercadería {formatMoney(total)} + transporte {formatMoney(Number(shippingCost))}
+            </p>
+          ) : null}
           <p className="purchase-form__total">
-            Total: <strong>Q{formatMoney(total)}</strong>
+            Total: <strong>{formatMoney(total + (Number(shippingCost) || 0))}</strong>
           </p>
         </Card>
       ) : null}

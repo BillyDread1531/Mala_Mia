@@ -3,6 +3,7 @@ import {
   ArrayMinSize,
   IsArray,
   IsInt,
+  IsNumber,
   IsOptional,
   IsString,
   Min,
@@ -22,6 +23,14 @@ export class CreatePurchaseDto {
   @IsOptional()
   @IsString()
   notes?: string;
+
+  /** Transporte/flete de esta compra: costo real del negocio (a diferencia
+   * del envío en Ventas, que es un traspaso del cliente). Se suma al total
+   * de la compra y se registra en `purchase_additional_costs`. */
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  shippingCost?: number;
 
   @IsArray()
   @ArrayMinSize(1)

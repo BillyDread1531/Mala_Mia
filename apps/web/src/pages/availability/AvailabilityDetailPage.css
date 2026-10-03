@@ -1,0 +1,92 @@
+.availability-detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  max-width: 560px;
+}
+
+.availability-detail__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.availability-detail__header h1 {
+  font-size: 20px;
+}
+
+.availability-detail__back {
+  font-size: 13px;
+  color: var(--color-accent-strong);
+}
+
+.availability-detail__summary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.availability-detail__code {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.availability-detail__price {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--color-accent-strong);
+}
+
+.availability-detail__measurements {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.availability-detail__description {
+  font-size: 14px;
+  color: var(--color-text);
+}
+
+.availability-detail__variants h2 {
+  font-size: 15px;
+  margin-bottom: var(--space-2);
+}
+
+.availability-detail__variants table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.availability-detail__variants th {
+  text-align: left;
+  font-size: 12px;
+  color: var(--color-text-muted);
+  padding-bottom: var(--space-2);
+}
+
+.availability-detail__variants td {
+  padding: var(--space-2) 0;
+  border-top: 1px solid var(--color-border);
+  font-size: 14px;
+}
+
+.availability-detail__status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+}
+
+.availability-detail__status--disponible {
+  color: var(--color-success);
+}
+
+.availability-detail__status--stock_bajo {
+  color: var(--color-warning);
+}
+
+.availability-detail__status--agotado {
+  color: var(--color-danger);
+}

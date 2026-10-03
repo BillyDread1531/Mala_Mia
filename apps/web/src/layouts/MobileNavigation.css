@@ -6,11 +6,19 @@
   z-index: 100;
   display: flex;
   align-items: center;
-  justify-content: space-around;
   height: var(--nav-height-mobile);
   padding-bottom: env(safe-area-inset-bottom, 0px);
   background: var(--color-surface);
   border-top: 1px solid var(--color-border);
+}
+
+.mobile-nav__side {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  flex: 1;
+  height: 100%;
+  min-width: 0;
 }
 
 .mobile-nav__item {
@@ -19,12 +27,20 @@
   align-items: center;
   gap: 2px;
   flex: 1;
+  min-width: 0;
   height: 100%;
   justify-content: center;
   color: var(--color-text-muted);
   text-decoration: none;
   font-size: 11px;
   font-weight: 600;
+}
+
+.mobile-nav__item span {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .mobile-nav__item.is-active {

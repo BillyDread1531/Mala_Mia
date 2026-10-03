@@ -23,6 +23,9 @@ export interface ProductView {
   cost: Prisma.Decimal | null;
   salePrice: Prisma.Decimal | null;
   recommendedPrice: Prisma.Decimal | null;
+  /** Medidas opcionales (cm), usadas principalmente en pantalones. */
+  waistMeasurement: Prisma.Decimal | null;
+  lengthMeasurement: Prisma.Decimal | null;
   isAvailableForSale: boolean;
   variants: ProductVariantView[];
   variantCount: number;
@@ -77,6 +80,8 @@ export function toProductView(
     cost: product.cost,
     salePrice: product.sale_price,
     recommendedPrice: calculateRecommendedPrice(product.cost, marginPercent),
+    waistMeasurement: product.waist_measurement,
+    lengthMeasurement: product.length_measurement,
     isAvailableForSale: product.is_available_for_sale,
     variantCount: activeVariants.length,
     variants: activeVariants.map((variant) => ({

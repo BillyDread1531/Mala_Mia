@@ -23,6 +23,7 @@
   font-size: 13px;
   font-weight: 600;
   text-align: center;
+  text-decoration: none;
 }
 
 .quick-actions__item:hover {

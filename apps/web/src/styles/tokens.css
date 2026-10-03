@@ -48,3 +48,26 @@
 
   --focus-ring: 0 0 0 3px rgba(224, 68, 123, 0.35);
 }
+
+/* Modo oscuro: mismas variables, reemplazadas por su versión oscura. El
+ * acento fucsia se mantiene (ya tiene buen contraste sobre fondos oscuros);
+ * solo cambian los fondos/bordes/texto y los tonos "soft" de cada estado. */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --color-bg: #1c1817;
+  --color-bg-cream: #211c1a;
+  --color-surface: #2a2423;
+  --color-border: #3d3532;
+  --color-text: #f5efec;
+  --color-text-muted: #b3a89f;
+
+  --color-accent-soft: #3a2430;
+
+  --color-success-soft: #1f3328;
+  --color-warning-soft: #3a2d12;
+  --color-danger-soft: #3a2020;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.4);
+}

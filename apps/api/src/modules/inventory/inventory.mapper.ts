@@ -55,6 +55,28 @@ export function toInventoryItemView(
   };
 }
 
+/**
+ * Vista agrupable por producto para Inventario: a diferencia de
+ * `InventoryItemView` (que solo existe si ya hay una fila en
+ * `inventory_items`), esta combina TODAS las combinaciones declaradas en
+ * `product_variants` con su stock real (0 si nunca se compró) — mismo
+ * principio que `AvailabilityItemView`, pero con `inventoryItemId` para
+ * poder ajustar incluso cuando todavía no existe esa fila.
+ */
+export interface InventoryGroupedItemView {
+  inventoryItemId: bigint | null;
+  productId: bigint;
+  productName: string;
+  productCode: string;
+  sizeId: bigint;
+  sizeName: string;
+  colorId: bigint;
+  colorName: string;
+  quantity: number;
+  averageCost: Prisma.Decimal | null;
+  status: InventoryStatus;
+}
+
 export interface InventoryMovementView {
   id: bigint;
   movementType: string;

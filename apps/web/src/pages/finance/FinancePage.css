@@ -1,0 +1,220 @@
+.finance {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.finance__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.finance__header h1 {
+  font-size: 20px;
+}
+
+.finance__header-actions {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.finance__header p {
+  color: var(--color-text-muted);
+  font-size: 14px;
+  margin-top: 2px;
+}
+
+.finance__period {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.finance__summary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+@media (min-width: 640px) {
+  .finance__summary {
+    flex-direction: row;
+  }
+}
+
+.finance__summary-card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.finance__summary-label {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.finance__summary-value {
+  font-size: 26px;
+  font-weight: 700;
+}
+
+.finance__summary-card--in .finance__summary-value {
+  color: var(--color-success);
+}
+
+.finance__summary-card--out .finance__summary-value {
+  color: var(--color-danger);
+}
+
+.finance__summary-card--available .finance__summary-value {
+  color: var(--color-accent-strong);
+}
+
+.finance__summary-card--deficit .finance__summary-value {
+  color: var(--color-danger);
+}
+
+.finance__distribution h2 {
+  font-size: 15px;
+  margin-bottom: var(--space-1);
+}
+
+.finance__distribution-hint {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  margin-bottom: var(--space-3);
+}
+
+.finance__distribution-rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.finance__distribution-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 15px;
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.finance__distribution-row:last-of-type {
+  border-bottom: none;
+}
+
+.finance__distribution-row-label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.finance__distribution-percent {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.finance__distribution-amount {
+  font-weight: 700;
+}
+
+.finance__distribution-footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: var(--space-2);
+}
+
+.finance__settings-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border);
+}
+
+.finance__settings-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: var(--space-2);
+}
+
+.finance__settings-sum {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.finance__settings-sum--invalid {
+  color: var(--color-danger);
+  font-weight: 600;
+}
+
+.finance__settings-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+.finance__breakdown-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.finance__breakdown-header h2 {
+  font-size: 15px;
+}
+
+.finance__disclosure-toggle {
+  background: none;
+  border: none;
+  color: var(--color-accent-strong);
+  font-size: 13px;
+  font-weight: 600;
+  padding: var(--space-1) 0;
+}
+
+.finance__breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border);
+}
+
+.finance__breakdown-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 15px;
+  padding: var(--space-1) 0;
+}
+
+.finance__breakdown-value {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.finance__breakdown-row--in .finance__breakdown-value {
+  color: var(--color-success);
+}
+
+.finance__breakdown-row--out .finance__breakdown-value {
+  color: var(--color-danger);
+}
+
+.finance__actions {
+  display: flex;
+  justify-content: flex-end;
+}

@@ -22,6 +22,7 @@ export interface Purchase {
   notes: string | null;
   itemCount: number;
   goodsTotal: string;
+  shippingCost: string;
   totalCost: string;
   items: PurchaseItem[];
   createdAt: string;
@@ -46,5 +47,6 @@ export interface PurchaseFormInput {
   supplierId: number;
   paymentMethodId: number;
   notes?: string;
+  shippingCost?: number;
   items: PurchaseItemInput[];
 }

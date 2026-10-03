@@ -71,6 +71,9 @@ describe('Auth (e2e)', () => {
 
   afterAll(async () => {
     // onDelete: Cascade en user_sessions elimina también sus sesiones.
+    await prisma.audit_logs.deleteMany({
+      where: { user_id: testUserId ?? 0n },
+    });
     await prisma.users
       .delete({ where: { id: testUserId } })
       .catch(() => undefined);

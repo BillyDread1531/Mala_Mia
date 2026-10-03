@@ -42,6 +42,17 @@ export class CreateProductDto {
   @Min(0)
   salePrice?: number;
 
+  /** Medidas opcionales (cm), usadas principalmente en pantalones. */
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  waistMeasurement?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  lengthMeasurement?: number;
+
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => VariantInputDto)

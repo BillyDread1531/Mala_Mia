@@ -1,9 +1,15 @@
-import type { Product, ProductFormInput, ProductListResponse } from '../types/product';
+import type {
+  Product,
+  ProductFormInput,
+  ProductListResponse,
+  VariantInput,
+} from '../types/product';
 import { apiFetch } from './client';
 
 export interface ListProductsParams {
   search?: string;
   categoryId?: number;
+  includeInactive?: boolean;
   page?: number;
   pageSize?: number;
 }
@@ -52,5 +58,22 @@ export function updateProduct(id: string, input: Partial<ProductFormInput>): Pro
   return apiFetch<Product>(`/products/${id}`, {
     method: 'PATCH',
     body: JSON.stringify(input),
+  });
+}
+
+export function setProductActive(id: string, isActive: boolean): Promise<Product> {
+  return apiFetch<Product>(`/products/${id}/active`, {
+    method: 'PATCH',
+    body: JSON.stringify({ isActive }),
+  });
+}
+
+/** Agrega combinaciones nuevas SIN tocar las que ya existen (a diferencia de
+ * `updateProduct`, que reemplaza el set completo). Pensado para declarar
+ * tallas/colores sobre la marcha desde Compras o Inventario. */
+export function addProductVariants(id: string, variants: VariantInput[]): Promise<Product> {
+  return apiFetch<Product>(`/products/${id}/variants`, {
+    method: 'PATCH',
+    body: JSON.stringify({ variants }),
   });
 }

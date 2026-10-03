@@ -1,0 +1,67 @@
+.recent-movements h2 {
+  font-size: 15px;
+  margin-bottom: var(--space-2);
+}
+
+.recent-movements__empty {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.recent-movements__list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.recent-movements__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.recent-movements__row:last-of-type {
+  border-bottom: none;
+}
+
+.recent-movements__info {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.recent-movements__type {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.recent-movements__description {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.recent-movements__amount {
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.recent-movements__amount--in {
+  color: var(--color-success);
+}
+
+.recent-movements__amount--out {
+  color: var(--color-danger);
+}
+
+.recent-movements__footer {
+  display: flex;
+  justify-content: center;
+  margin-top: var(--space-3);
+}

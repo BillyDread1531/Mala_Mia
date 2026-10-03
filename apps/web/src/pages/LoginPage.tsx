@@ -5,7 +5,6 @@ import { useAuth } from '../auth/useAuth';
 import { ApiError } from '../api/client';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
-import { Heart } from '../components/Heart';
 import { Input } from '../components/Input';
 import './LoginPage.css';
 
@@ -41,8 +40,8 @@ export function LoginPage() {
     <div className="login-page">
       <Card className="login-card">
         <div className="login-card__brand">
-          <Heart size={40} title="MALA MÍA" />
-          <h1>MALA MÍA</h1>
+          <h1 className="login-card__brand-title">MALA MÍA</h1>
+          <img className="login-card__logo" src="/mala-mia-wordmark.png" alt="MALA MÍA" />
           <p>Inicia sesión para continuar</p>
         </div>
 

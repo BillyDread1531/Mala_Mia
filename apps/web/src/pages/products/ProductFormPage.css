@@ -5,6 +5,14 @@
   max-width: 640px;
 }
 
+.product-form__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
 .product-form__header h1 {
   font-size: 20px;
 }
@@ -46,6 +54,82 @@
   min-height: 80px;
   padding: var(--space-2) var(--space-4);
   resize: vertical;
+}
+
+.product-form__quantity-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.product-form__quantity-table th {
+  text-align: left;
+  font-size: 12px;
+  color: var(--color-text-muted);
+  padding-bottom: var(--space-2);
+}
+
+.product-form__quantity-table td {
+  padding: var(--space-1) var(--space-2) var(--space-1) 0;
+  vertical-align: middle;
+}
+
+.product-form__quantity-table input {
+  min-height: 36px;
+  width: 100%;
+  max-width: 120px;
+}
+
+.product-form__stock-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.product-form__stock-row {
+  border-top: 1px solid var(--color-border);
+  padding-top: var(--space-2);
+}
+
+.product-form__stock-row:first-child {
+  border-top: none;
+  padding-top: 0;
+}
+
+.product-form__stock-row-main {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.product-form__stock-row-main > span:first-child {
+  flex: 1;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.product-form__stock-qty {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.product-form__stock-adjust-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  margin-top: var(--space-2);
+  background: var(--color-bg-cream);
+  border-radius: var(--radius-md);
+}
+
+.product-form__stock-adjust-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
 }
 
 .product-form__recommended {

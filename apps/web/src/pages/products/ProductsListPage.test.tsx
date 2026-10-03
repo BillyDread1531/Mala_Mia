@@ -23,6 +23,8 @@ const SAMPLE_PRODUCT: Product = {
   cost: '65',
   salePrice: '125',
   recommendedPrice: '100',
+  waistMeasurement: null,
+  lengthMeasurement: null,
   isAvailableForSale: true,
   variantCount: 3,
   variants: [],
@@ -79,5 +81,38 @@ describe('ProductsListPage', () => {
         expect.objectContaining({ search: 'satin' }),
       );
     });
+  });
+
+  it('por defecto no pide productos inactivos, y "Mostrar inactivos" los incluye', async () => {
+    const user = userEvent.setup();
+    const inactiveProduct: Product = {
+      ...SAMPLE_PRODUCT,
+      id: '2',
+      name: 'Blusa Descontinuada',
+      isAvailableForSale: false,
+    };
+    mockedListProducts.mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 20 });
+    renderPage();
+
+    await screen.findByText('Todavía no hay productos');
+    expect(mockedListProducts).toHaveBeenCalledWith(
+      expect.objectContaining({ includeInactive: false }),
+    );
+
+    mockedListProducts.mockResolvedValue({
+      items: [inactiveProduct],
+      total: 1,
+      page: 1,
+      pageSize: 20,
+    });
+    await user.click(screen.getByLabelText('Mostrar inactivos'));
+
+    await vi.waitFor(() => {
+      expect(mockedListProducts).toHaveBeenCalledWith(
+        expect.objectContaining({ includeInactive: true }),
+      );
+    });
+    expect(await screen.findByText('Blusa Descontinuada')).toBeInTheDocument();
+    expect(screen.getByText('Inactivo')).toBeInTheDocument();
   });
 });

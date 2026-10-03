@@ -32,6 +32,7 @@ interface PurchaseBody {
   paymentMethod: { id: string; name: string };
   itemCount: number;
   goodsTotal: string;
+  shippingCost: string;
   totalCost: string;
   items: PurchaseItemBody[];
 }
@@ -183,6 +184,9 @@ describe('Purchases (e2e)', () => {
     await prisma.purchase_items.deleteMany({
       where: { purchase_id: { in: purchaseIds } },
     });
+    await prisma.purchase_additional_costs.deleteMany({
+      where: { purchase_id: { in: purchaseIds } },
+    });
     await prisma.purchases.deleteMany({ where: { id: { in: purchaseIds } } });
     await prisma.products.deleteMany({
       where: { name: { startsWith: TEST_NAME_PREFIX } },
@@ -190,7 +194,11 @@ describe('Purchases (e2e)', () => {
     await prisma.suppliers.deleteMany({
       where: { name: { startsWith: TEST_NAME_PREFIX } },
     });
-    await prisma.users.deleteMany({ where: { id: userId } });
+    await prisma.financial_movements.deleteMany({
+      where: { created_by: userId ?? 0n },
+    });
+    await prisma.audit_logs.deleteMany({ where: { user_id: userId ?? 0n } });
+    await prisma.users.deleteMany({ where: { id: userId ?? 0n } });
     await app.close();
   });
 
@@ -244,6 +252,44 @@ describe('Purchases (e2e)', () => {
         name: `${TEST_NAME_PREFIX}Boutique XX`,
       });
       expect(body.purchaseNumber).toMatch(/^\d{5}$/);
+    });
+
+    it('con costo de transporte, lo suma al total y lo registra en el movimiento', async () => {
+      const res = await authed(
+        request(app.getHttpServer())
+          .post('/purchases')
+          .send({
+            supplierId: Number(supplierId),
+            paymentMethodId: Number(paymentMethodId),
+            shippingCost: 50,
+            items: [
+              {
+                productId: Number(productId),
+                sizeId: Number(sizeM),
+                colorId: Number(colorBeige),
+                quantity: 1,
+                unitCost: 65,
+              },
+            ],
+          }),
+      ).expect(201);
+
+      const body = res.body as PurchaseBody;
+      expect(body.goodsTotal).toBe('65');
+      expect(body.shippingCost).toBe('50');
+      expect(body.totalCost).toBe('115');
+
+      const additionalCost =
+        await prisma.purchase_additional_costs.findFirstOrThrow({
+          where: { purchase_id: BigInt(body.id) },
+        });
+      expect(additionalCost.cost_type).toBe('SHIPPING');
+      expect(Number(additionalCost.amount)).toBe(50);
+
+      const movement = await prisma.financial_movements.findFirstOrThrow({
+        where: { reference_type: 'purchase', reference_id: BigInt(body.id) },
+      });
+      expect(Number(movement.amount)).toBe(115);
     });
 
     it('rechaza una variante que no pertenece al producto', async () => {

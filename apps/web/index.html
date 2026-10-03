@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#fbf3ef" />
     <meta name="description" content="MALA MÍA - sistema administrativo" />
-    <link rel="icon" type="image/svg+xml" href="/heart-mark.svg" />
-    <link rel="alternate icon" href="/favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -18,6 +18,14 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      // Se aplica antes de pintar para no mostrar un parpadeo claro→oscuro
+      // al cargar; `src/theme/theme.ts` reusa la misma llave de localStorage.
+      try {
+        var theme = localStorage.getItem('mala-mia-theme');
+        if (theme === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+      } catch (e) {}
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

@@ -1,9 +1,12 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { getPurchase } from '../../api/purchases';
+import { getGeneralSettings } from '../../api/settings';
 import { ApiError } from '../../api/client';
+import { Button } from '../../components/Button';
 import { Card } from '../../components/Card';
 import { Loading } from '../../components/Loading';
+import { renderPurchaseReceiptJpgDataUrl, shareOrDownloadDataUrl } from '../../lib/receipt';
 import { useNotify } from '../../notifications/useNotify';
 import type { Purchase } from '../../types/purchase';
 import './PurchaseDetailPage.css';
@@ -21,6 +24,30 @@ export function PurchaseDetailPage() {
   const notify = useNotify();
   const [purchase, setPurchase] = useState<Purchase | null>(null);
   const [loading, setLoading] = useState(true);
+  const [downloading, setDownloading] = useState(false);
+
+  async function handleShareReceipt() {
+    if (!purchase) return;
+    setDownloading(true);
+    try {
+      const settings = await getGeneralSettings().catch(() => undefined);
+      const dataUrl = await renderPurchaseReceiptJpgDataUrl(
+        purchase,
+        settings
+          ? { businessName: settings.businessName, receiptMessage: settings.receiptMessage }
+          : undefined,
+      );
+      await shareOrDownloadDataUrl(
+        dataUrl,
+        `compra-${purchase.purchaseNumber}.jpg`,
+        `Compra #${purchase.purchaseNumber}`,
+      );
+    } catch {
+      notify.error('No se pudo generar el comprobante.');
+    } finally {
+      setDownloading(false);
+    }
+  }
 
   useEffect(() => {
     if (!id) return;
@@ -109,6 +136,12 @@ export function PurchaseDetailPage() {
       <p className="purchase-detail__total">
         Total: <strong>Q{purchase.totalCost}</strong>
       </p>
+
+      <div className="purchase-detail__actions">
+        <Button type="button" loading={downloading} onClick={() => void handleShareReceipt()}>
+          Compartir comprobante
+        </Button>
+      </div>
     </div>
   );
 }

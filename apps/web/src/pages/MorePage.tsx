@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { LogoutIcon } from '../components/icons';
 import { useAuth } from '../auth/useAuth';
 import { useNotify } from '../notifications/useNotify';
@@ -18,17 +19,24 @@ export function MorePage() {
 
   return (
     <div className="more-page">
-      {MORE_ENTRIES.map((entry) => (
-        <button
-          key={entry.label}
-          type="button"
-          className="more-page__item"
-          onClick={() => notify.info(`"${entry.label}" estará disponible próximamente.`)}
-        >
-          <strong>{entry.label}</strong>
-          <span>{entry.description}</span>
-        </button>
-      ))}
+      {MORE_ENTRIES.map((entry) =>
+        entry.to ? (
+          <Link key={entry.label} to={entry.to} className="more-page__item">
+            <strong>{entry.label}</strong>
+            <span>{entry.description}</span>
+          </Link>
+        ) : (
+          <button
+            key={entry.label}
+            type="button"
+            className="more-page__item"
+            onClick={() => notify.info(`"${entry.label}" estará disponible próximamente.`)}
+          >
+            <strong>{entry.label}</strong>
+            <span>{entry.description}</span>
+          </button>
+        ),
+      )}
 
       <button type="button" className="more-page__logout" onClick={handleLogout}>
         <LogoutIcon /> Cerrar sesión

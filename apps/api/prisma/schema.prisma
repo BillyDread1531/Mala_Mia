@@ -63,6 +63,17 @@ model categories {
   products   products[]
 }
 
+model consumables {
+  id                  BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  name                String   @unique(map: "uq_consumables_name") @db.VarChar(100)
+  quantity            Int      @default(0)
+  low_stock_threshold Int      @default(5)
+  units_per_sale      Int      @default(1)
+  is_active           Boolean  @default(true)
+  created_at          DateTime @default(now()) @db.DateTime(0)
+  updated_at          DateTime @default(now()) @db.DateTime(0)
+}
+
 model colors {
   id               BigInt             @id @default(autoincrement()) @db.UnsignedBigInt
   name             String             @db.VarChar(100)
@@ -76,6 +87,8 @@ model colors {
   product_variants product_variants[]
   purchase_items   purchase_items[]
   sale_items       sale_items[]
+  sale_corrections_previous sale_corrections[] @relation("sale_corrections_previous_color")
+  sale_corrections_new      sale_corrections[] @relation("sale_corrections_new_color")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -280,6 +293,9 @@ model products {
   description           String?            @db.Text
   cost                  Decimal?           @db.Decimal(12, 2)
   sale_price            Decimal?           @db.Decimal(12, 2)
+  /// Medidas opcionales (cm), usadas principalmente en pantalones.
+  waist_measurement     Decimal?           @db.Decimal(6, 2)
+  length_measurement    Decimal?           @db.Decimal(6, 2)
   is_available_for_sale Boolean            @default(true)
   created_at            DateTime           @default(now()) @db.DateTime(0)
   updated_at            DateTime           @default(now()) @db.DateTime(0)
@@ -470,6 +486,44 @@ model roles {
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// Corrección de un error humano al registrar una línea de venta (talla,
+/// color, cantidad o precio equivocados). A diferencia de una devolución o
+/// un cambio, SÍ actualiza sale_items para reflejar lo que realmente se
+/// vendió; esta tabla conserva el valor anterior como historial auditable.
+model sale_corrections {
+  id                  BigInt     @id @default(autoincrement()) @db.UnsignedBigInt
+  sale_id             BigInt     @db.UnsignedBigInt
+  sale_item_id        BigInt     @db.UnsignedBigInt
+  correction_number   String     @unique(map: "uq_sale_corrections_number") @db.VarChar(50)
+  previous_size_id    BigInt     @db.UnsignedBigInt
+  previous_color_id   BigInt     @db.UnsignedBigInt
+  previous_quantity   Int
+  previous_unit_price Decimal    @db.Decimal(12, 2)
+  new_size_id         BigInt     @db.UnsignedBigInt
+  new_color_id        BigInt     @db.UnsignedBigInt
+  new_quantity        Int
+  new_unit_price      Decimal    @db.Decimal(12, 2)
+  reason              String     @db.VarChar(255)
+  notes               String?    @db.Text
+  created_by          BigInt     @db.UnsignedBigInt
+  created_at          DateTime   @default(now()) @db.DateTime(0)
+  sales               sales      @relation(fields: [sale_id], references: [id], map: "fk_sale_corrections_sale")
+  sale_items          sale_items @relation(fields: [sale_item_id], references: [id], map: "fk_sale_corrections_sale_item")
+  previous_size       sizes      @relation("sale_corrections_previous_size", fields: [previous_size_id], references: [id], map: "fk_sale_corrections_prev_size")
+  previous_color      colors     @relation("sale_corrections_previous_color", fields: [previous_color_id], references: [id], map: "fk_sale_corrections_prev_color")
+  new_size            sizes      @relation("sale_corrections_new_size", fields: [new_size_id], references: [id], map: "fk_sale_corrections_new_size")
+  new_color           colors     @relation("sale_corrections_new_color", fields: [new_color_id], references: [id], map: "fk_sale_corrections_new_color")
+  users               users      @relation(fields: [created_by], references: [id], map: "fk_sale_corrections_user")
+
+  @@index([sale_id], map: "idx_sale_corrections_sale")
+  @@index([sale_item_id], map: "idx_sale_corrections_sale_item")
+  @@index([previous_size_id], map: "fk_sale_corrections_prev_size")
+  @@index([previous_color_id], map: "fk_sale_corrections_prev_color")
+  @@index([new_size_id], map: "fk_sale_corrections_new_size")
+  @@index([new_color_id], map: "fk_sale_corrections_new_color")
+  @@index([created_by], map: "fk_sale_corrections_user")
+}
+
 model sale_items {
   id                BigInt           @id @default(autoincrement()) @db.UnsignedBigInt
   sale_id           BigInt           @db.UnsignedBigInt
@@ -485,6 +539,7 @@ model sale_items {
   created_at        DateTime         @default(now()) @db.DateTime(0)
   exchange_items    exchange_items[]
   return_items      return_items[]
+  sale_corrections  sale_corrections[]
   colors            colors           @relation(fields: [color_id], references: [id], map: "fk_sale_items_color")
   inventory_items   inventory_items  @relation(fields: [inventory_item_id], references: [id], map: "fk_sale_items_inventory")
   products          products         @relation(fields: [product_id], references: [id], map: "fk_sale_items_product")
@@ -521,6 +576,7 @@ model sales {
   exchanges                     exchanges[]
   receipts                      receipts?
   returns                       returns[]
+  sale_corrections              sale_corrections[]
   sale_items                    sale_items[]
   users_sales_created_byTousers users           @relation("sales_created_byTousers", fields: [created_by], references: [id], map: "fk_sales_created_by")
   payment_methods               payment_methods @relation(fields: [payment_method_id], references: [id], map: "fk_sales_payment_method")
@@ -546,6 +602,8 @@ model sizes {
   product_variants product_variants[]
   purchase_items   purchase_items[]
   sale_items       sale_items[]
+  sale_corrections_previous sale_corrections[] @relation("sale_corrections_previous_size")
+  sale_corrections_new      sale_corrections[] @relation("sale_corrections_new_size")
 }
 
 model suppliers {
@@ -601,6 +659,7 @@ model users {
   profit_distribution_settings  profit_distribution_settings[]
   purchases                     purchases[]
   returns                       returns[]
+  sale_corrections              sale_corrections[]
   sales_sales_created_byTousers sales[]                        @relation("sales_created_byTousers")
   sales_sales_updated_byTousers sales[]                        @relation("sales_updated_byTousers")
   user_sessions                 user_sessions[]

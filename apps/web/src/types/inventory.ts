@@ -28,6 +28,23 @@ export interface InventoryMovement {
   createdAt: string;
 }
 
+/** Incluye TODAS las combinaciones declaradas en el producto (no solo las
+ * que ya tienen una fila de inventario): `inventoryItemId` es null cuando
+ * nunca se compró, y el stock se muestra en 0. */
+export interface InventoryGroupedItem {
+  inventoryItemId: string | null;
+  productId: string;
+  productName: string;
+  productCode: string;
+  sizeId: string;
+  sizeName: string;
+  colorId: string;
+  colorName: string;
+  quantity: number;
+  averageCost: string | null;
+  status: InventoryStatus;
+}
+
 export interface InventoryListResponse {
   items: InventoryItem[];
   total: number;

@@ -9,6 +9,28 @@
   color: var(--color-text-muted);
 }
 
+.size-color-picker__search {
+  max-width: 260px;
+}
+
+.size-color-picker__header {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.size-color-picker__inline-create {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.size-color-picker__inline-actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
 .product-form__chips {
   display: flex;
   flex-wrap: wrap;
@@ -39,9 +61,11 @@
 }
 
 .chip--sm.is-disabled {
-  background: var(--color-bg-cream);
+  background: transparent;
+  border-style: dashed;
+  border-color: var(--color-border);
   color: var(--color-text-muted);
-  text-decoration: line-through;
+  opacity: 0.5;
 }
 
 .product-form__combinations {

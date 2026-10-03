@@ -23,6 +23,7 @@ const SAMPLE_PURCHASE: Purchase = {
   notes: null,
   itemCount: 3,
   goodsTotal: '390',
+  shippingCost: '0',
   totalCost: '390',
   items: [],
   createdAt: '2026-09-30T00:00:00.000Z',

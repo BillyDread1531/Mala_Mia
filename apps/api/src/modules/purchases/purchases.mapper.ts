@@ -32,6 +32,8 @@ export interface PurchaseView {
   notes: string | null;
   itemCount: number;
   goodsTotal: Prisma.Decimal;
+  /** Transporte/flete de esta compra, ya incluido en `totalCost`. */
+  shippingCost: Prisma.Decimal;
   totalCost: Prisma.Decimal;
   items: PurchaseItemView[];
   createdAt: Date;
@@ -51,6 +53,7 @@ export function toPurchaseView(purchase: PurchaseWithRelations): PurchaseView {
     notes: purchase.notes,
     itemCount: purchase.purchase_items.length,
     goodsTotal: purchase.goods_total,
+    shippingCost: purchase.additional_cost,
     totalCost: purchase.total_cost,
     items: purchase.purchase_items.map((item) => ({
       id: item.id,

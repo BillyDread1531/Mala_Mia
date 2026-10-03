@@ -1,0 +1,113 @@
+.supplier-detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  max-width: 680px;
+}
+
+.supplier-detail__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.supplier-detail__header h1 {
+  font-size: 20px;
+}
+
+.supplier-detail__back {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.supplier-detail__stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-3);
+}
+
+.supplier-detail__stats > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.supplier-detail__stat-label {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.supplier-detail__stats strong {
+  font-size: 16px;
+}
+
+.supplier-detail__form h2,
+.supplier-detail__history h2 {
+  font-size: 16px;
+  margin-bottom: var(--space-3);
+}
+
+.supplier-detail__form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.supplier-detail__row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+}
+
+.supplier-detail__form-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.supplier-detail__purchase-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.supplier-detail__purchase-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--color-border);
+  text-decoration: none;
+  color: var(--color-text);
+}
+
+.supplier-detail__purchase-row:last-of-type {
+  border-bottom: none;
+}
+
+.supplier-detail__purchase-number {
+  display: block;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.supplier-detail__purchase-date {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.supplier-detail__purchase-total {
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+@media (max-width: 480px) {
+  .supplier-detail__row {
+    grid-template-columns: 1fr;
+  }
+}
