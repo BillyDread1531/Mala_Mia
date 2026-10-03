@@ -1,3 +1,4 @@
+
 import {
   Body,
   Controller,
@@ -35,10 +36,11 @@ export class AuthController {
   private cookieOptions(): CookieOptions {
     const isProduction =
       this.configService.get('env', { infer: true }) === 'production';
+
     return {
       httpOnly: true,
       secure: isProduction,
-      sameSite: 'lax',
+      sameSite: isProduction ? 'none' : 'lax',
       path: '/',
     };
   }
@@ -82,10 +84,13 @@ export class AuthController {
     const token = (req.cookies as Record<string, string> | undefined)?.[
       SESSION_COOKIE_NAME
     ];
+
     if (token) {
       await this.authService.logout(token);
     }
+
     res.clearCookie(SESSION_COOKIE_NAME, this.cookieOptions());
+
     return { success: true };
   }
 
@@ -100,6 +105,7 @@ export class AuthController {
       dto.currentPassword,
       dto.newPassword,
     );
+
     return { success: true };
   }
 }
