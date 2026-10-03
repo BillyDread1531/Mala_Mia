@@ -21,8 +21,8 @@ const HEART_LOGO_DRAW_HEIGHT = 56;
 const HEART_LOGO_DRAW_Y = 10;
 // Línea izquierda, donde antes iba el corazón chico + "MALA MÍA": el
 // letrero "Mala♡Mía" ("MALA MIA FONDO 2").
-const WORDMARK_SRC = '/mala-mia-wordmark-2.png';
-const WORDMARK_ASPECT = 640 / 149;
+const WORDMARK_SRC = '/mala-mia-wordmark.png';
+const WORDMARK_ASPECT = 640 / 140;
 const WORDMARK_DRAW_HEIGHT = 32;
 const WORDMARK_DRAW_Y = 16;
 const HEADER_BANNER_HEIGHT = 80;
