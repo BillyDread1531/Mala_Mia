@@ -5,5 +5,9 @@
   "description": "MALA MIA - sistema administrativo (tienda de ropa)",
   "workspaces": [
     "apps/*"
-  ]
+  ],
+  "scripts": {
+    "build": "npx prisma@6.19.3 generate --schema=apps/api/prisma/schema.prisma && npm run build --workspace=apps/api && npm run build --workspace=apps/web",
+    "start": "node apps/api/dist/src/main.js"
+  }
 }
